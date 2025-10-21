@@ -10,6 +10,30 @@ H-RDT (**H**uman to **R**obotics **D**iffusion **T**ransformer) is a novel appro
 
 ## 🚀 Installation
 
+### Quick Start (Recommended)
+
+For a complete setup guide with EgoDex data preprocessing, see [SETUP_GUIDE.md](SETUP_GUIDE.md).
+
+1. **Create virtual environment:**
+   ```bash
+   python3 -m venv hrdt_env
+   source hrdt_env/bin/activate
+   pip install --upgrade pip
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Download pre-trained models (optional):**
+   ```bash
+   export HF_ENDPOINT=https://hf-mirror.com
+   huggingface-cli download --resume-download embodiedfoundation/H-RDT --local-dir ./
+   ```
+
+### Alternative: Conda Installation
+
 1. **Create conda environment:**
    ```bash
    conda create -n hrdt python=3.10
@@ -21,15 +45,11 @@ H-RDT (**H**uman to **R**obotics **D**iffusion **T**ransformer) is a novel appro
    pip install -r requirements.txt
    ```
 
-3. **Download pre-trained models:**
-   ```bash
-   export HF_ENDPOINT=https://hf-mirror.com
-   huggingface-cli download --resume-download embodiedfoundation/H-RDT --local-dir ./
-   ```
-
 ## 🔧 Usage
 
 ### Stage 1: Human Data Pre-training (EgoDx)
+
+> **📖 For detailed setup instructions with troubleshooting, see [SETUP_GUIDE.md](SETUP_GUIDE.md)**
 
 #### Data Preprocessing
 Before training, preprocess the EgoDx dataset:
@@ -41,11 +61,12 @@ Before training, preprocess the EgoDx dataset:
    
    # Set your EgoDx dataset and T5 model paths:
    export EGODEX_DATA_ROOT="/path/to/your/egodx/dataset"
-   export T5_MODEL_PATH="/path/to/your/t5-v1_1-xxl"
+   export T5_MODEL_PATH="google/t5-v1_1-xxl"  # Uses HuggingFace model
    ```
 
 2. **Setup environment:**
    ```bash
+   source hrdt_env/bin/activate  # or conda activate hrdt
    source datasets/pretrain/setup_pretrain.sh
    ```
 
@@ -66,6 +87,7 @@ After data preprocessing is complete:
    ```
 2. Run training:
    ```bash
+   source hrdt_env/bin/activate  # or conda activate hrdt
    bash pretrain.sh
    ```
 

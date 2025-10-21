@@ -84,9 +84,9 @@ def worker_process(process_id, gpu_id, file_list, progress_queue):
         
         # Initialize T5 encoder
         text_embedder = T5Embedder(
+            device=device,
             from_pretrained=MODEL_PATH, 
-            model_max_length=config["dataset"]["tokenizer_max_length"], 
-            device=device
+            model_max_length=config["dataset"]["tokenizer_max_length"]
         )
         tokenizer, text_encoder = text_embedder.tokenizer, text_embedder.model
         
