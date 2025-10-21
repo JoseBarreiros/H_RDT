@@ -181,3 +181,7 @@ test_*.py
 
 checkpoints/*
 bak/*
+
+# Large datasets and models
+t5-v1_1-xxl/
+robotwin2_dataset/

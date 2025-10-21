@@ -167,12 +167,14 @@ class RobotwinAgilexDataset:
                 for file in files:
                     if file.endswith(".hdf5"):
                         hdf5_path = os.path.join(root, file)
-                        hdf5_files.append(hdf5_path)
+                        # Filter out Franka robots (16D actions) - only use 14D robots
+                        if "franka" not in root.lower():
+                            hdf5_files.append(hdf5_path)
             
             # Shuffle files for randomness
             random.shuffle(hdf5_files)
             task_to_episodes[task_folder] = hdf5_files
-            print(f"Multi-task {task_folder}: Found {len(hdf5_files)} HDF5 files")
+            print(f"Multi-task {task_folder}: Found {len(hdf5_files)} HDF5 files (14D robots only)")
         
         return task_to_episodes
     

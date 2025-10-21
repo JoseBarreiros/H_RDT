@@ -263,6 +263,7 @@ def train(args, logger):
         val=False,
         use_precomp_lang_embed=args.precomp_lang_embed,
         task_name=args.task_name,
+        dataset_name="robotwin_agilex",
     )
     
     val_dataset = VLAConsumerDataset(
@@ -276,6 +277,7 @@ def train(args, logger):
         val=True,
         use_precomp_lang_embed=args.precomp_lang_embed,
         task_name=args.task_name,
+        dataset_name="robotwin_agilex",
     )
 
     # Create data collator for batching
@@ -332,7 +334,16 @@ def train(args, logger):
 
     # Initialize trackers
     if accelerator.is_main_process:
-        accelerator.init_trackers("hrdt", config=vars(args))
+        # Filter config to only include serializable values for TensorBoard
+        config_dict = vars(args)
+        serializable_config = {}
+        for key, value in config_dict.items():
+            if isinstance(value, (int, float, str, bool)) or value is None:
+                serializable_config[key] = value
+            else:
+                # Convert non-serializable values to strings
+                serializable_config[key] = str(value)
+        accelerator.init_trackers("hrdt", config=serializable_config)
 
     if args.report_to == "tensorboard":
         from torch.utils.tensorboard import SummaryWriter
@@ -418,8 +429,6 @@ def train(args, logger):
                 if args.training_mode == "lang":
                     lang_embeds = batch["lang_embeds"].to(dtype=weight_dtype)
                     lang_attn_mask = batch["lang_attn_mask"].to(dtype=weight_dtype)
-                
-                print(batch["lang_embeds"].shape)
 
                 # Compute loss
                 loss_dict = hrdt.compute_loss(

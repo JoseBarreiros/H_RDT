@@ -72,7 +72,7 @@ class VLAConsumerDataset(Dataset):
                 mode="multi_task",
                 config=config,
                 # Note: override default paths
-                multi_task_root_dir="/path/to/robotwin2",
+                multi_task_root_dir=os.environ.get("ROBOTWIN2_DATA_ROOT", "/home/jose-barreiros/development/H_RDT/robotwin2_dataset/dataset"),
             )
             '''
             self.hdf5_dataset = RobotwinAgilexDataset(
