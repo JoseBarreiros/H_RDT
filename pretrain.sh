@@ -1,9 +1,9 @@
-export NCCL_IB_HCA=mlx5_0:1,mlx5_1:1,mlx5_2:1,mlx5_3:1,mlx5_4:1,mlx5_7:1,mlx5_8:1,mlx5_9:1
-export NCCL_IB_DISABLE=0
-export NCCL_SOCKET_IFNAME=bond0
-export NCCL_DEBUG=INFO
+# NCCL configuration for single-node multi-GPU training
+export NCCL_IB_DISABLE=1
+export NCCL_SOCKET_IFNAME=ens9
+export NCCL_DEBUG=WARN
 export NCCL_NVLS_ENABLE=0
-export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+export CUDA_VISIBLE_DEVICES=0,1,2,3
 
 export CFLAGS="-I/usr/include"
 export LDFLAGS="-L/usr/lib/x86_64-linux-gnu"
@@ -13,6 +13,9 @@ export WANDB_PROJECT="hrdt"
 export OUTPUT_DIR="./checkpoints/pretrain"
 
 export VISION_ENCODER_NAME="dino-siglip"
+
+# Set EgoDex data root
+export EGODEX_DATA_ROOT="/home/jose-barreiros/egodex/organized"
 
 if [ ! -d "$OUTPUT_DIR" ]; then
     mkdir "$OUTPUT_DIR"

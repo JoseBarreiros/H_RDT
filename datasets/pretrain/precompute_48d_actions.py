@@ -213,7 +213,7 @@ def collect_all_hdf5_files(root_dir):
     root_path = Path(root_dir)
     
     # Traverse all part directories
-    for part in ['part1', 'part2', 'part3', 'part4', 'part5', 'extra', 'test']:
+    for part in ['part1', 'part2', 'part3', 'part4', 'part5', 'extra', 'test', 'train']:
         part_dir = root_path / part
         if part_dir.exists():
             for task_dir in part_dir.iterdir():

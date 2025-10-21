@@ -13,7 +13,8 @@ export HRDT_CONFIG_PATH="${HRDT_PROJECT_ROOT}/configs/hrdt_pretrain.yaml"
 export HRDT_OUTPUT_DIR="${HRDT_PROJECT_ROOT}/datasets/pretrain"
 
 # Processing parameters
-export NUM_PROCESSES=8
+export NUM_GPUS=4
+export PROCESSES_PER_GPU=2
 export FORCE_OVERWRITE=true
 
 # Create output directory

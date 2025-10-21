@@ -41,7 +41,7 @@ class VLAConsumerDataset(Dataset):
         upsample_rate=None,
         val=False,
         task_name="open_laptop",
-        dataset_name="test_robotwin",  # Add dataset_name parameter
+        dataset_name="egodex",  # Add dataset_name parameter
     ):
         super(VLAConsumerDataset, self).__init__()
         self.dataset_name = dataset_name
@@ -59,12 +59,12 @@ class VLAConsumerDataset(Dataset):
         # Initialize dataset based on dataset_name
         if self.dataset_name == "egodex":
             self.hdf5_dataset = EgoDexDataset(
+                data_root=os.environ.get("EGODEX_DATA_ROOT", "/home/jose-barreiros/egodex/organized"),
                 config=config,
                 upsample_rate=upsample_rate,
                 val=val,
                 use_precomp_lang_embed=use_precomp_lang_embed,
                 # Note: override default paths if needed
-                # data_root="/path/to/egodex",
                 # stat_path="/path/to/custom/egodex_stat.json",
             )
         elif self.dataset_name == "robotwin_agilex":

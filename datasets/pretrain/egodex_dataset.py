@@ -80,13 +80,12 @@ class EgoDexDataset:
         data_files = []
         
         if not self.val:
-            # Training set: part1-part5 + extra
-            for part in ['part1', 'part2', 'part3', 'part4', 'part5', 'extra']:
-                part_dir = self.data_root / part
-                if part_dir.exists():
-                    data_files.extend(self._scan_directory(part_dir))
+            # Training set: train directory
+            train_dir = self.data_root / 'train'
+            if train_dir.exists():
+                data_files.extend(self._scan_directory(train_dir))
         else:
-            # Test set: test
+            # Test set: test directory
             test_dir = self.data_root / 'test'
             if test_dir.exists():
                 data_files.extend(self._scan_directory(test_dir))

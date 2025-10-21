@@ -105,7 +105,27 @@ After successful preprocessing, you should have:
 3. **Language Embeddings**: `.pt` files alongside each HDF5 file
 4. **Log Files**: `datasets/pretrain/egodex_large_values.txt`
 
-Verify with:
+#### Automated Verification (Recommended)
+
+Use the comprehensive verification script:
+```bash
+# Run the verification script
+python verify_dataset.py --data_root /path/to/your/egodex/dataset
+
+# For detailed output showing specific issues
+python verify_dataset.py --data_root /path/to/your/egodex/dataset --verbose
+```
+
+The verification script will check:
+- ✅ Presence of HDF5, MP4, and language encoding (.pt) files
+- ✅ Correct structure of HDF5 files (actions_48d, transforms, etc.)
+- ✅ Data consistency across file types
+- ✅ Language encoding validity
+
+**Expected Output**: All files should pass verification. Language encoding length mismatches are expected and not errors (instruction-level vs frame-level data).
+
+#### Manual Verification
+
 ```bash
 # Check statistics file
 ls -la datasets/pretrain/egodex_stat.json
@@ -123,6 +143,38 @@ with h5py.File('~/egodex/organized/test/slot_batteries/0.hdf5', 'r') as f:
 "
 ```
 
+## 🧪 Testing Setup (Optional)
+
+### Creating a Test Subset
+
+For debugging or initial testing, create a small subset of the dataset:
+
+```bash
+# Create test subset (adjust paths as needed)
+mkdir -p ~/egodex/test_subset/{train,test}
+
+# Copy a few task directories for testing
+cp -r ~/egodex/organized/train/dry_hands ~/egodex/test_subset/train/
+cp -r ~/egodex/organized/test/dry_hands ~/egodex/test_subset/test/
+
+# Update setup script for test subset
+# Edit datasets/pretrain/setup_pretrain.sh:
+export EGODEX_DATA_ROOT="/home/jose-barreiros/egodex/test_subset"
+
+# Run preprocessing on test subset
+source datasets/pretrain/setup_pretrain.sh
+python datasets/pretrain/precompute_48d_actions.py --data_root /home/jose-barreiros/egodex/test_subset --num_processes 8 --force_overwrite
+python datasets/pretrain/encode_lang_batch.py
+
+# Verify test subset
+python verify_dataset.py --data_root /home/jose-barreiros/egodex/test_subset
+```
+
+This approach allows you to:
+- Test the complete pipeline quickly
+- Debug issues without processing the full dataset
+- Validate setup before running on the complete dataset
+
 ## 🎯 Starting Pretraining
 
 ### 1. Configure Dataset
@@ -130,7 +182,7 @@ with h5py.File('~/egodex/organized/test/slot_batteries/0.hdf5', 'r') as f:
 Ensure the dataset is configured for EgoDex:
 ```python
 # In datasets/dataset.py, line ~45
-self.dataset_name = "egodx"
+self.dataset_name = "egodex"
 ```
 
 ### 2. Run Pretraining
@@ -166,6 +218,29 @@ The pretraining script will:
    ```bash
    mkdir -p ./checkpoints/pretrain
    ```
+
+5. **Missing Language Encodings**: If verification shows missing `.pt` files:
+   ```bash
+   # Re-run language encoding with correct GPU count
+   source datasets/pretrain/setup_pretrain.sh
+   python datasets/pretrain/encode_lang_batch.py
+   ```
+
+6. **Missing 48D Actions**: If verification shows missing `actions_48d` in HDF5 files:
+   ```bash
+   # Re-run 48D actions preprocessing
+   source datasets/pretrain/setup_pretrain.sh
+   python datasets/pretrain/precompute_48d_actions.py --data_root /path/to/dataset --num_processes 8 --force_overwrite
+   ```
+
+7. **Dataset Loading Errors**: If training fails with "Missing precomputed actions_48d data":
+   - Verify preprocessing completed successfully using the verification script
+   - Check that all required files exist (HDF5, MP4, .pt)
+   - Ensure dataset configuration points to correct dataset name ("egodex")
+
+8. **NCCL Communication Errors**: If you see NCCL warnings:
+   - The current configuration in `pretrain.sh` should handle most cases
+   - For specific network interfaces, adjust `NCCL_SOCKET_IFNAME` in `pretrain.sh`
 
 ### Verification Commands
 

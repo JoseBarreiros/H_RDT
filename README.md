@@ -76,6 +76,15 @@ Before training, preprocess the EgoDx dataset:
    ./datasets/pretrain/run_pretrain_pipeline.sh
    ```
 
+4. **Verify preprocessing results:**
+   ```bash
+   # Run comprehensive verification
+   python verify_dataset.py --data_root /path/to/your/egodx/dataset
+   
+   # For detailed output
+   python verify_dataset.py --data_root /path/to/your/egodx/dataset --verbose
+   ```
+
 #### Start Pre-training
 After data preprocessing is complete:
 

@@ -37,7 +37,7 @@ def collect_all_files():
     for item in os.listdir(TARGET_DIR):
         item_path = os.path.join(TARGET_DIR, item)
         if os.path.isdir(item_path):
-            if item in ['extra', 'test'] or item.startswith('part'):
+            if item in ['extra', 'test', 'train'] or item.startswith('part'):
                 dataset_dirs.append(item_path)
     
     dataset_dirs.sort()

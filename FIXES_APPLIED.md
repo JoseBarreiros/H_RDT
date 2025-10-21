@@ -2,6 +2,35 @@
 
 This document records the key fixes and modifications made during the H-RDT setup process to ensure successful EgoDex pretraining.
 
+## 🔍 Dataset Verification Script
+
+**Created**: `verify_dataset.py` - A comprehensive script to validate dataset integrity
+
+**Purpose**: 
+- Verify presence of all required files (HDF5, MP4, .pt language encodings)
+- Check data consistency and structure
+- Identify missing or corrupted files before training
+- Provide detailed diagnostics for troubleshooting
+
+**Usage**:
+```bash
+# Basic verification
+python verify_dataset.py --data_root /path/to/egodex/dataset
+
+# Detailed output with specific issues
+python verify_dataset.py --data_root /path/to/egodex/dataset --verbose
+```
+
+**Key Features**:
+- ✅ Checks for required file types (HDF5, MP4, .pt)
+- ✅ Validates HDF5 file structure and required keys
+- ✅ Verifies language encoding files and their structure
+- ✅ Reports missing files and data inconsistencies
+- ✅ Provides actionable recommendations for fixes
+- ✅ Handles expected behavior (instruction-level vs frame-level data)
+
+**Impact**: This script was crucial in identifying and resolving dataset preprocessing issues, leading to successful training with 16,129 examples.
+
 ## 🔧 Code Fixes
 
 ### 1. T5Embedder Initialization Fix
