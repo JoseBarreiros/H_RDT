@@ -25,7 +25,9 @@ class EgoDexDataset:
                  upsample_rate=3,
                  val=False,
                  use_precomp_lang_embed=True,
-                 stat_path=None):
+                 stat_path=None,
+                 data_percentage=1.0,
+                 seed=42):
         """
         Args:
             data_root: Data root directory (e.g., "/share/hongzhe/datasets/egodex")
@@ -34,6 +36,8 @@ class EgoDexDataset:
             val: Whether it's validation set (True for test, False for train)
             use_precomp_lang_embed: Whether to use precomputed language embeddings
             stat_path: Statistics file path (default: datasets/pretrain/egodex_stat.json)
+            data_percentage: Percentage of data to use (1.0 = 100%, 0.1 = 10%, etc.)
+            seed: Random seed for reproducible subsampling
         """
         self.DATASET_NAME = "egodex"
         self.data_root = Path(data_root)
@@ -41,6 +45,8 @@ class EgoDexDataset:
         self.upsample_rate = upsample_rate
         self.val = val
         self.use_precomp_lang_embed = use_precomp_lang_embed
+        self.data_percentage = data_percentage
+        self.seed = seed
         
         if config:
             self.chunk_size = config['common']['action_chunk_size']
@@ -58,6 +64,14 @@ class EgoDexDataset:
         
         # Load data file list
         self.data_files = self._load_file_list()
+        
+        # Subsample if data_percentage < 1.0
+        if self.data_percentage < 1.0:
+            random.seed(self.seed)
+            num_samples = int(len(self.data_files) * self.data_percentage)
+            self.data_files = random.sample(self.data_files, num_samples)
+            print(f"Subsampled to {len(self.data_files)}/{int(len(self.data_files) / self.data_percentage)} files ({self.data_percentage*100:.1f}% of data)")
+        
         split_name = "test" if self.val else "train"
         print(f"Loaded {len(self.data_files)} {split_name} data files")
         

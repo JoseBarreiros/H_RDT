@@ -15,6 +15,7 @@ export HRDT_OUTPUT_DIR="${HRDT_PROJECT_ROOT}/datasets/pretrain"
 # Processing parameters
 export NUM_GPUS=4
 export PROCESSES_PER_GPU=2
+export NUM_PROCESSES=8
 export FORCE_OVERWRITE=true
 
 # Create output directory
@@ -26,4 +27,5 @@ export PYTHONPATH="${HRDT_PROJECT_ROOT}:${PYTHONPATH}"
 echo "Pretrain environment setup completed"
 echo "Data Root: $EGODEX_DATA_ROOT"
 echo "T5 Model: $T5_MODEL_PATH"
-echo "Output Dir: $HRDT_OUTPUT_DIR" 
+echo "Output Dir: $HRDT_OUTPUT_DIR"
+echo "Num Processes: $NUM_PROCESSES" 

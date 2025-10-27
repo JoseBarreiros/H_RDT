@@ -42,6 +42,8 @@ class VLAConsumerDataset(Dataset):
         val=False,
         task_name="open_laptop",
         dataset_name="egodex",  # Add dataset_name parameter
+        data_percentage=1.0,
+        seed=42,
     ):
         super(VLAConsumerDataset, self).__init__()
         self.dataset_name = dataset_name
@@ -64,6 +66,8 @@ class VLAConsumerDataset(Dataset):
                 upsample_rate=upsample_rate,
                 val=val,
                 use_precomp_lang_embed=use_precomp_lang_embed,
+                data_percentage=data_percentage,
+                seed=seed,
                 # Note: override default paths if needed
                 # stat_path="/path/to/custom/egodex_stat.json",
             )

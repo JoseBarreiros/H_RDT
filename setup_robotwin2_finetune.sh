@@ -95,7 +95,7 @@ with open(config_path, 'r') as f:
 
 # Update the paths
 content = content.replace('export ROBOTWIN2_DATA_ROOT="/share/hongzhe/datasets/robotwin2/dataset/aloha-agilex"', f'export ROBOTWIN2_DATA_ROOT="${ROBOTWIN2_DATA_ROOT}"')
-content = content.replace('export T5_MODEL_PATH="/data/lingxuan/weights/t5-v1_1-xxl"', f'export T5_MODEL_PATH="${T5_MODEL_PATH}"')
+content = content.replace('export T5_MODEL_PATH="/data/lingxuan/weights/t5-v1_1-xxl"', f'export T5_MODEL_PATH="${T5_MODEL_PATH:-google/t5-v1_1-xxl}"')
 
 # Write back the updated content
 with open(config_path, 'w') as f:

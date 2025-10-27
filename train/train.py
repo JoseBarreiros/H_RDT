@@ -19,6 +19,11 @@ import os
 import copy
 from pathlib import Path
 import sys
+
+# Add project root to path for proper imports
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
 import numpy as np
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:32"
@@ -264,6 +269,8 @@ def train(args, logger):
         use_precomp_lang_embed=args.precomp_lang_embed,
         task_name=args.task_name,
         dataset_name="egodex",
+        data_percentage=args.data_percentage if hasattr(args, 'data_percentage') else 1.0,
+        seed=args.seed if hasattr(args, 'seed') else 42,
     )
     
     val_dataset = VLAConsumerDataset(
@@ -278,6 +285,8 @@ def train(args, logger):
         use_precomp_lang_embed=args.precomp_lang_embed,
         task_name=args.task_name,
         dataset_name="egodex",
+        data_percentage=1.0,  # Always use 100% of validation data
+        seed=args.seed if hasattr(args, 'seed') else 42,
     )
 
     # Create data collator for batching

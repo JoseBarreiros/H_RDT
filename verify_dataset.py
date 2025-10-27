@@ -22,13 +22,13 @@ def verify_hdf5_file(hdf5_path):
     
     try:
         with h5py.File(hdf5_path, 'r') as f:
-            # Check required keys
-            required_keys = ['actions', 'transforms', 'images']
+            # Check required keys for EgoDex dataset
+            required_keys = ['transforms', 'camera']
             for key in required_keys:
                 if key not in f:
                     issues.append(f"Missing required key: {key}")
             
-            # Check for precomputed actions_48d
+            # Check for precomputed actions_48d (this is what we add during preprocessing)
             if 'actions_48d' not in f:
                 issues.append("Missing precomputed actions_48d data")
             else:
@@ -36,19 +36,28 @@ def verify_hdf5_file(hdf5_path):
                 if len(actions_48d.shape) != 2 or actions_48d.shape[1] != 48:
                     issues.append(f"Invalid actions_48d shape: {actions_48d.shape}")
             
-            # Check data consistency
-            if 'actions' in f and 'transforms' in f:
-                actions_len = len(f['actions'])
-                transforms_len = len(f['transforms'])
-                if actions_len != transforms_len:
-                    issues.append(f"Actions ({actions_len}) and transforms ({transforms_len}) length mismatch")
-            
-            if 'images' in f:
-                images_len = len(f['images'])
-                if 'transforms' in f:
-                    transforms_len = len(f['transforms'])
-                    if images_len != transforms_len:
-                        issues.append(f"Images ({images_len}) and transforms ({transforms_len}) length mismatch")
+            # For EgoDex, transforms is a Group with body parts
+            # Get actual transform length by checking a body part (e.g., leftHand)
+            if 'transforms' in f:
+                transforms_group = f['transforms']
+                if isinstance(transforms_group, h5py.Group):
+                    # Try to find leftHand or rightHand to get the actual length
+                    if 'leftHand' in transforms_group:
+                        transforms_len = len(transforms_group['leftHand'])
+                    elif 'rightHand' in transforms_group:
+                        transforms_len = len(transforms_group['rightHand'])
+                    else:
+                        transforms_len = None
+                else:
+                    transforms_len = len(transforms_group)
+                
+                # Check that transforms and actions_48d are reasonable
+                if 'actions_48d' in f and transforms_len is not None:
+                    actions_48d_len = len(f['actions_48d'])
+                    # actions_48d should have more frames (it's per frame)
+                    # transforms keyframes are sparse
+                    if actions_48d_len < transforms_len:
+                        issues.append(f"actions_48d ({actions_48d_len}) has fewer frames than transforms keyframes ({transforms_len})")
                         
     except Exception as e:
         issues.append(f"HDF5 read error: {str(e)}")
@@ -127,6 +136,40 @@ def verify_single_file(file_info_dict):
     return file_info_dict['file_id'], file_issues
 
 
+def verify_stats_file(data_root, output_dir):
+    """Verify that the statistics file exists and is valid."""
+    issues = []
+    
+    stats_file = Path(output_dir) / "egodex_stat.json"
+    large_values_file = Path(output_dir) / "egodex_large_values.txt"
+    
+    if not stats_file.exists():
+        issues.append("Missing statistics file (egodex_stat.json)")
+        return issues
+    
+    try:
+        import json
+        with open(stats_file, 'r') as f:
+            stats = json.load(f)
+        
+        if 'egodex' not in stats:
+            issues.append("Statistics file missing 'egodex' key")
+        else:
+            egodex_stats = stats['egodex']
+            if 'min' not in egodex_stats or 'max' not in egodex_stats:
+                issues.append("Statistics file missing min/max values")
+            elif len(egodex_stats['min']) != 48 or len(egodex_stats['max']) != 48:
+                issues.append(f"Statistics min/max should have 48 dimensions, got min={len(egodex_stats.get('min', []))}, max={len(egodex_stats.get('max', []))}")
+    except Exception as e:
+        issues.append(f"Error reading statistics file: {str(e)}")
+    
+    # Note: large_values_file can be empty (no issues to report)
+    if not large_values_file.exists():
+        issues.append("Warning: large_values file not found")
+    
+    return issues
+
+
 def collect_dataset_files(data_root):
     """Collect all dataset files and organize by task."""
     data_root = Path(data_root)
@@ -164,7 +207,7 @@ def collect_dataset_files(data_root):
     return file_info
 
 
-def verify_dataset(data_root, verbose=False, num_workers=None):
+def verify_dataset(data_root, verbose=False, num_workers=None, stats_dir=None):
     """Verify the entire dataset with optional multiprocessing."""
     print(f"🔍 Verifying dataset at: {data_root}")
     print("=" * 60)
@@ -235,7 +278,7 @@ def verify_dataset(data_root, verbose=False, num_workers=None):
                         task_stats[task_name]['data_inconsistency'] += 1
                 
                 if verbose:
-                    print(f"    ❌ {file_info_dict['file_id']}: {'; '.join(file_issues)}")
+                    print(f"    ❌ {file_id}: {'; '.join(file_issues)}")
         
         if task_issues == 0:
             print(f"    ✅ All {len(files)} files verified successfully")
@@ -244,6 +287,31 @@ def verify_dataset(data_root, verbose=False, num_workers=None):
             all_good = False
         
         print()
+    
+    # Verify statistics files
+    print("=" * 60)
+    print("📊 VERIFYING PREPROCESSING OUTPUT FILES")
+    print("=" * 60)
+    
+    # Try to find the output directory
+    if stats_dir:
+        output_dir = Path(stats_dir)
+    else:
+        # Look for datasets/pretrain relative to this script or current directory
+        script_dir = Path(__file__).parent
+        output_dir = script_dir / "datasets" / "pretrain"
+        if not output_dir.exists():
+            output_dir = Path.cwd() / "datasets" / "pretrain"
+    
+    stats_issues = verify_stats_file(data_root, output_dir)
+    if stats_issues:
+        print("⚠️  Statistics file issues:")
+        for issue in stats_issues:
+            print(f"  • {issue}")
+    else:
+        print("✅ Statistics file is valid")
+    
+    print()
     
     # Summary
     print("=" * 60)
@@ -299,6 +367,8 @@ def main():
                        help="Show detailed error messages")
     parser.add_argument("--num_workers", type=int, default=None,
                        help="Number of parallel workers (default: auto-detect, max 16)")
+    parser.add_argument("--stats_dir", type=str, default=None,
+                       help="Directory containing statistics files (default: auto-detect)")
     
     args = parser.parse_args()
     
@@ -306,7 +376,7 @@ def main():
         print(f"❌ Data root does not exist: {args.data_root}")
         sys.exit(1)
     
-    success = verify_dataset(args.data_root, verbose=args.verbose, num_workers=args.num_workers)
+    success = verify_dataset(args.data_root, verbose=args.verbose, num_workers=args.num_workers, stats_dir=args.stats_dir)
     sys.exit(0 if success else 1)
 
 

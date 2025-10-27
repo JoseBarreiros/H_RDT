@@ -47,20 +47,22 @@ For a complete setup guide with EgoDex data preprocessing, see [SETUP_GUIDE.md](
 
 ## 🔧 Usage
 
-### Stage 1: Human Data Pre-training (EgoDx)
+### Stage 1: Human Data Pre-training (EgoDex)
 
 > **📖 For detailed setup instructions with troubleshooting, see [SETUP_GUIDE.md](SETUP_GUIDE.md)**
 
+> **📊 For scaling law experiments, see [SCALING_LAW_GUIDE.md](SCALING_LAW_GUIDE.md)**
+
 #### Data Preprocessing
-Before training, preprocess the EgoDx dataset:
+Before training, preprocess the EgoDex dataset:
 
 1. **Configure paths:**
    ```bash
    # Edit datasets/pretrain/setup_pretrain.sh with your paths
    nano datasets/pretrain/setup_pretrain.sh
    
-   # Set your EgoDx dataset and T5 model paths:
-   export EGODEX_DATA_ROOT="/path/to/your/egodx/dataset"
+   # Set your EgoDex dataset and T5 model paths:
+   export EGODEX_DATA_ROOT="/path/to/your/egodex/dataset"
    export T5_MODEL_PATH="google/t5-v1_1-xxl"  # Uses HuggingFace model
    ```
 
@@ -79,25 +81,26 @@ Before training, preprocess the EgoDx dataset:
 4. **Verify preprocessing results:**
    ```bash
    # Run comprehensive verification
-   python verify_dataset.py --data_root /path/to/your/egodx/dataset
+   python verify_dataset.py --data_root /path/to/your/egodex/dataset
    
    # For detailed output
-   python verify_dataset.py --data_root /path/to/your/egodx/dataset --verbose
+   python verify_dataset.py --data_root /path/to/your/egodex/dataset --verbose
    ```
 
 #### Start Pre-training
 After data preprocessing is complete:
 
-**1. EgoDx Pretrain (fresh start):**
-1. Configure dataset:
-   ```python
-   # Edit datasets/dataset.py line ~45
-   self.dataset_name = "egodx"
-   ```
+**1. EgoDex Pretrain (fresh start):**
+1. Dataset is already configured for EgoDex (default)
 2. Run training:
    ```bash
    source hrdt_env/bin/activate  # or conda activate hrdt
    bash pretrain.sh
+   ```
+   
+   **Optional:** To customize dataset configuration, edit `datasets/dataset.py` line ~45:
+   ```python
+   self.dataset_name = "egodex"  # Already set by default
    ```
 
 **2. Pretrain Resume:**
@@ -105,6 +108,39 @@ Edit `pretrain.sh`, add this line:
 ```bash
 --resume_from_checkpoint="checkpoint-450000" \
 ```
+
+**3. Scaling Law Experiments:**
+Train with different percentages of EgoDex data to study data efficiency and performance scaling:
+```bash
+# Train with 10% of data for faster iteration
+source hrdt_env/bin/activate
+
+accelerate launch --main_process_port 29500 main.py \
+    --pretrained_vision_encoder_name_or_path="dino-siglip" \
+    --deepspeed configs/zero1.json \
+    --config_path configs/hrdt_pretrain.yaml \
+    --output_dir ./checkpoints/scaling_p10 \
+    --train_batch_size 32 \
+    --sample_batch_size 32 \
+    --max_train_steps 100000 \
+    --learning_rate 1e-4 \
+    --data_percentage 0.1 \
+    --seed 42 \
+    --checkpointing_period 10000 \
+    --precomp_lang_embed \
+    --mixed_precision bf16 \
+    --dataloader_num_workers 32 \
+    --dataset_type pretrain \
+    --upsample_rate 3 \
+    --image_aug \
+    --gradient_checkpointing \
+    --training_mode lang \
+    --mode pretrain
+
+# Or run all percentages automatically
+./run_scaling_law_experiments.sh
+```
+📖 **For detailed scaling law guide, see [SCALING_LAW_GUIDE.md](SCALING_LAW_GUIDE.md)**
 
 ### Stage 2: Cross-Embodiment Fine-tuning
 
@@ -155,7 +191,7 @@ Edit your current finetune script, make these changes:
 
 | Training Scenario | Base Script | Required Shell Script Modifications | Mode & Key Parameters |
 |-------------------|-------------|-------------------------------------|----------------------|
-| **Human Pretrain (Fresh)** | `pretrain.sh` | `--mode="pretrain"` | Start pretraining on EgoDx human data |
+| **Human Pretrain (Fresh)** | `pretrain.sh` | `--mode="pretrain"` | Start pretraining on EgoDex human data |
 | **Human Pretrain Resume** | `pretrain.sh` | Add: `--resume_from_checkpoint="checkpoint-450000" \` | `--mode="pretrain"` |
 | **Robot Fine-tuning** | `finetune.sh` | Change: `--mode="finetune" \`<br>Add: `--pretrained_backbone_path="./checkpoints/pretrain-0618/checkpoint-500000/pytorch_model.bin" \`<br>Change: `--config_path="configs/hrdt_finetune.yaml" \` | Load human pre-trained backbone, fresh action layers |
 | **Robot Finetune Resume** | Your finetune script | Change: `--mode="finetune"` → `--mode="pretrain"`<br>Add: `--resume_from_checkpoint="checkpoint-5000" \` | Continue robot fine-tuning |
@@ -164,12 +200,12 @@ Edit your current finetune script, make these changes:
 
 Before training, you need to configure the dataset in `datasets/dataset.py`:
 
-#### For Human Pre-training (EgoDx):
+#### For Human Pre-training (EgoDex):
 ```python
 # In datasets/dataset.py, line ~45
-self.dataset_name = "egodx"
+self.dataset_name = "egodex"
 
-# The EgoDxDataset will be automatically initialized
+# The EgoDexDataset will be automatically initialized
 ```
 
 #### For Robot Fine-tuning:
@@ -193,10 +229,12 @@ elif self.dataset_name == "your_robot_name":
 5. Add initialization logic in `VLAConsumerDataset.__init__`
 
 ### Key Configuration Files
-- `configs/hrdt_pretrain.yaml`: Human pre-training configuration
-- `configs/hrdt_finetune.yaml`: Robot fine-tuning configuration  
+- `configs/hrdt_pretrain.yaml`: Human pre-training configuration (buffer path updated)
+- `configs/hrdt_finetune.yaml`: Robot fine-tuning configuration (buffer path updated)
 - `datasets/dataset.py`: Dataset selection and initialization
 - Modify `state_dim`, `action_dim`, `output_size` for your robot
+
+**Note:** All hardcoded user-specific paths have been removed and replaced with generic paths or environment variables. See [LINGXUAN_CLEANUP.md](LINGXUAN_CLEANUP.md) for details.
 
 ## 📞 Contact Us
 

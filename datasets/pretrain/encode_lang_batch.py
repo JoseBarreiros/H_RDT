@@ -18,7 +18,7 @@ sys.path.append(PROJECT_ROOT)
 from models.encoder.t5_encoder import T5Embedder
 
 # Get paths from environment variables or use defaults
-MODEL_PATH = os.environ.get('T5_MODEL_PATH', "/data/lingxuan/weights/t5-v1_1-xxl")
+MODEL_PATH = os.environ.get('T5_MODEL_PATH', "google/t5-v1_1-xxl")
 CONFIG_PATH = os.environ.get('HRDT_CONFIG_PATH', os.path.join(PROJECT_ROOT, "configs/hrdt_pretrain.yaml"))
 TARGET_DIR = os.environ.get('EGODEX_DATA_ROOT', "/share/hongzhe/datasets/egodex/")
 

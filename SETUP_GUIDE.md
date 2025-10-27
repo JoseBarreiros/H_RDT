@@ -101,7 +101,7 @@ source datasets/pretrain/setup_pretrain.sh
 After successful preprocessing, you should have:
 
 1. **48D Action Data**: Added as `actions_48d` key in all HDF5 files
-2. **Statistics File**: `datasets/pretrain/egodex_stat.json`
+2. **Statistics File**: `datasets/pretrain/egodex_stat.json` (includes metadata: file count, timestamp, action dimensions, etc.)
 3. **Language Embeddings**: `.pt` files alongside each HDF5 file
 4. **Log Files**: `datasets/pretrain/egodex_large_values.txt`
 
@@ -109,11 +109,14 @@ After successful preprocessing, you should have:
 
 Use the comprehensive verification script:
 ```bash
-# Run the verification script
+# Run the verification script for full dataset
 python verify_dataset.py --data_root /path/to/your/egodex/dataset
 
 # For detailed output showing specific issues
 python verify_dataset.py --data_root /path/to/your/egodex/dataset --verbose
+
+# For test subset with custom stats directory
+python verify_dataset.py --data_root /path/to/test_subset --stats_dir /path/to/test_subset_output
 ```
 
 The verification script will check:
@@ -121,14 +124,25 @@ The verification script will check:
 - ✅ Correct structure of HDF5 files (actions_48d, transforms, etc.)
 - ✅ Data consistency across file types
 - ✅ Language encoding validity
+- ✅ Statistics file validity with metadata (file count, timestamp, etc.)
 
 **Expected Output**: All files should pass verification. Language encoding length mismatches are expected and not errors (instruction-level vs frame-level data).
 
 #### Manual Verification
 
 ```bash
-# Check statistics file
-ls -la datasets/pretrain/egodex_stat.json
+# Check statistics file exists and has metadata
+cat datasets/pretrain/egodex_stat.json | grep -A 10 '"metadata"'
+
+# Example output shows:
+# "metadata": {
+#     "files_processed": 318082,
+#     "timestamp": "2025-10-27T16:06:09.534163",
+#     "data_root": "/home/jose-barreiros/egodex/organized",
+#     "action_dims": 48,
+#     "large_values_count": 0,
+#     "error_count": 0
+# }
 
 # Check for language embeddings
 find ~/egodex/organized -name "*.pt" | head -5
@@ -149,31 +163,59 @@ with h5py.File('~/egodex/organized/test/slot_batteries/0.hdf5', 'r') as f:
 
 For debugging or initial testing, create a small subset of the dataset:
 
+#### Quick Method: Use the Test Subset Script (Recommended)
+
+A dedicated script handles all steps and prevents overwriting full dataset results:
+
 ```bash
-# Create test subset (adjust paths as needed)
+# 1. Create test subset (copy small task directories)
 mkdir -p ~/egodex/test_subset/{train,test}
+cp -r ~/egodex/organized/train/wash_kitchen_dishes ~/egodex/test_subset/train/
+cp -r ~/egodex/organized/test/wash_kitchen_dishes ~/egodex/test_subset/test/
 
-# Copy a few task directories for testing
-cp -r ~/egodex/organized/train/dry_hands ~/egodex/test_subset/train/
-cp -r ~/egodex/organized/test/dry_hands ~/egodex/test_subset/test/
+# 2. Run the automated test pipeline
+./datasets/pretrain/run_test_subset.sh
+```
 
-# Update setup script for test subset
-# Edit datasets/pretrain/setup_pretrain.sh:
-export EGODEX_DATA_ROOT="/home/jose-barreiros/egodex/test_subset"
+This script will:
+- ✅ Process only the test subset
+- ✅ Generate separate statistics files (won't overwrite full dataset stats)
+- ✅ Run all 3 preprocessing steps automatically
+- ✅ Verify the results
+
+**Output locations for test subset:**
+- Statistics: `datasets/pretrain/test_subset_output/egodex_stat.json`
+- Large values log: `datasets/pretrain/test_subset_output/egodex_large_values.txt`
+- Processed data: `~/egodex/test_subset/`
+
+#### Manual Method
+
+If you prefer manual control:
+
+```bash
+# Create test subset
+mkdir -p ~/egodex/test_subset/{train,test}
+cp -r ~/egodex/organized/train/wash_kitchen_dishes ~/egodex/test_subset/train/
+cp -r ~/egodex/organized/test/wash_kitchen_dishes ~/egodex/test_subset/test/
+
+# Setup environment
+source datasets/pretrain/setup_pretrain.sh
 
 # Run preprocessing on test subset
-source datasets/pretrain/setup_pretrain.sh
-python datasets/pretrain/precompute_48d_actions.py --data_root /home/jose-barreiros/egodex/test_subset --num_processes 8 --force_overwrite
+export EGODEX_DATA_ROOT="/home/jose-barreiros/egodex/test_subset"
+python datasets/pretrain/precompute_48d_actions.py --data_root "$EGODEX_DATA_ROOT" --num_processes 8 --force_overwrite
+python datasets/pretrain/calc_stat.py --data_root "$EGODEX_DATA_ROOT" --output_path datasets/pretrain/test_subset_output/egodex_stat.json
 python datasets/pretrain/encode_lang_batch.py
 
-# Verify test subset
-python verify_dataset.py --data_root /home/jose-barreiros/egodex/test_subset
+# Verify test subset with custom stats directory
+python verify_dataset.py --data_root ~/egodex/test_subset --stats_dir datasets/pretrain/test_subset_output
 ```
 
 This approach allows you to:
-- Test the complete pipeline quickly
+- Test the complete pipeline quickly (minutes instead of hours)
 - Debug issues without processing the full dataset
-- Validate setup before running on the complete dataset
+- Validate setup before running on the complete dataset (318,082 files)
+- Keep test results separate from full dataset results
 
 ## 🎯 Starting Pretraining
 
@@ -224,6 +266,8 @@ The pretraining script will:
    # Re-run language encoding with correct GPU count
    source datasets/pretrain/setup_pretrain.sh
    python datasets/pretrain/encode_lang_batch.py
+   
+   # Note: This may show "No files found to process" if .pt files already exist from the original dataset
    ```
 
 6. **Missing 48D Actions**: If verification shows missing `actions_48d` in HDF5 files:
@@ -231,6 +275,9 @@ The pretraining script will:
    # Re-run 48D actions preprocessing
    source datasets/pretrain/setup_pretrain.sh
    python datasets/pretrain/precompute_48d_actions.py --data_root /path/to/dataset --num_processes 8 --force_overwrite
+   
+   # Then recalculate statistics
+   python datasets/pretrain/calc_stat.py --data_root /path/to/dataset
    ```
 
 7. **Dataset Loading Errors**: If training fails with "Missing precomputed actions_48d data":

@@ -310,6 +310,13 @@ def parse_args(input_args=None):
         help="Task name for RobotwinAgilexDataset (e.g., 'open_laptop', 'close_laptop', etc.)"
     )
 
+    parser.add_argument(
+        "--data_percentage",
+        type=float,
+        default=1.0,
+        help="Percentage of EgoDex data to use for scaling law experiments (1.0 = 100%, 0.1 = 10%, etc.)"
+    )
+
     if input_args is not None:
         args = parser.parse_args(input_args)
     else:

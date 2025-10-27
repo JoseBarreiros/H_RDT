@@ -7,7 +7,7 @@ export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 
 export CFLAGS="-I/usr/include"
 export LDFLAGS="-L/usr/lib/x86_64-linux-gnu"
-export CUTLASS_PATH="/data/lingxuan/cutlass"
+export CUTLASS_PATH="${CUTLASS_PATH:-/usr/local/cutlass}"
 
 export WANDB_PROJECT="hrdt"
 export OUTPUT_DIR="./checkpoints/robotwin2"

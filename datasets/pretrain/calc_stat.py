@@ -6,6 +6,7 @@ from tqdm import tqdm
 from glob import glob
 from pathlib import Path
 import argparse
+from datetime import datetime
 
 def collect_egodex_action_stats(root_dir, output_path, large_values_log="large_values.txt"):
     """
@@ -31,11 +32,11 @@ def collect_egodex_action_stats(root_dir, output_path, large_values_log="large_v
     root_path = Path(root_dir)
     hdf5_files = []
     
-    # Traverse all part directories
-    for part in ['part1', 'part2', 'part3', 'part4', 'part5', 'extra', 'test']:
-        part_dir = root_path / part
-        if part_dir.exists():
-            for task_dir in part_dir.iterdir():
+    # Traverse train and test directories for EgoDex organized structure
+    for split in ['train', 'test']:
+        split_dir = root_path / split
+        if split_dir.exists():
+            for task_dir in split_dir.iterdir():
                 if task_dir.is_dir():
                     task_hdf5_files = list(task_dir.glob('*.hdf5'))
                     hdf5_files.extend(task_hdf5_files)
@@ -84,6 +85,14 @@ def collect_egodex_action_stats(root_dir, output_path, large_values_log="large_v
         "egodex": {
             "min": global_min.tolist() if global_min is not None else [],
             "max": global_max.tolist() if global_max is not None else [],
+        },
+        "metadata": {
+            "files_processed": file_count,
+            "timestamp": datetime.now().isoformat(),
+            "data_root": str(root_dir),
+            "action_dims": len(global_min) if global_min is not None else 48,
+            "large_values_count": len(large_values_files),
+            "error_count": len(error_files)
         }
     }
 

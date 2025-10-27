@@ -88,12 +88,16 @@ python datasets/pretrain/encode_lang_batch.py
 datasets/pretrain/
 ├── setup_pretrain.sh              # Environment setup script
 ├── run_pretrain_pipeline.sh       # Complete pipeline runner
-├── precompute_48d_actions.py      # Step 1: Precompute actions
+├── run_test_subset.sh             # Test subset processing script
+├── precompute_48d_actions.py     # Step 1: Precompute actions
 ├── calc_stat.py                   # Step 2: Calculate statistics
 ├── encode_lang_batch.py           # Step 3: Encode language
 ├── egodex_dataset.py              # EgoDex dataset loader
-├── egodx_stat.json                # Generated statistics file
+├── egodex_stat.json                # Generated statistics file
 ├── egodex_large_values.txt        # Outlier detection log
+├── test_subset_output/            # Test subset output directory
+│   ├── egodex_stat.json           # Test statistics
+│   └── egodex_large_values.txt    # Test large values log
 └── README.md                      # This file
 ```
 
@@ -103,18 +107,17 @@ Your EgoDex dataset should be organized as:
 
 ```
 $EGODEX_DATA_ROOT/
-├── part1/
+├── train/
 │   ├── task1/
 │   │   ├── 0.hdf5
+│   │   ├── 0.mp4
+│   │   ├── 0.pt
 │   │   ├── 1.hdf5
 │   │   └── ...
 │   └── task2/
-├── part2/
-├── part3/
-├── part4/
-├── part5/
-├── extra/
 └── test/
+    ├── task1/
+    └── task2/
 ```
 
 ## Output Files
@@ -122,6 +125,41 @@ $EGODEX_DATA_ROOT/
 After processing, you'll have:
 
 1. **48D Action Data**: Added as `actions_48d` key in all HDF5 files
-2. **Statistics**: `egodex_stat.json` with min/max values for normalization
+2. **Statistics**: `egodex_stat.json` with min/max values for normalization + metadata (file count, timestamp, dimensions)
 3. **Language Embeddings**: `.pt` files alongside each HDF5 file
-4. **Log Files**: `egodx_large_values.txt` with outlier information
+4. **Log Files**: `egodex_large_values.txt` with outlier information
+
+### Statistics File Format
+
+The `egodex_stat.json` file now includes metadata:
+```json
+{
+    "egodex": {
+        "min": [...],
+        "max": [...]
+    },
+    "metadata": {
+        "files_processed": 318082,
+        "timestamp": "2025-10-27T16:06:09.534163",
+        "data_root": "/path/to/egodex/organized",
+        "action_dims": 48,
+        "large_values_count": 0,
+        "error_count": 0
+    }
+}
+```
+
+## Testing with Test Subset
+
+For quick testing without processing the full dataset:
+
+```bash
+# Create and process test subset (won't overwrite full dataset stats)
+./datasets/pretrain/run_test_subset.sh
+```
+
+This script:
+- Creates separate output directory (`test_subset_output/`)
+- Processes only the test subset
+- Generates its own statistics file
+- Runs verification at the end

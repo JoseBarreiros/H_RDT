@@ -7,7 +7,7 @@ export CUDA_VISIBLE_DEVICES=0,1,2,3
 
 export CFLAGS="-I/usr/include"
 export LDFLAGS="-L/usr/lib/x86_64-linux-gnu"
-export CUTLASS_PATH="/data/lingxuan/cutlass"
+export CUTLASS_PATH="${CUTLASS_PATH:-/usr/local/cutlass}"
 
 export WANDB_PROJECT="hrdt"
 export OUTPUT_DIR="./checkpoints/pretrain"
@@ -44,7 +44,7 @@ accelerate launch --main_process_port 29500 main.py \
     --learning_rate=1e-4 \
     --mixed_precision="bf16" \
     --dataloader_num_workers=32 \
-    --dataset_type="finetune" \
+    --dataset_type="pretrain" \
     --report_to=wandb \
     --upsample_rate=3 \
     --image_aug \
