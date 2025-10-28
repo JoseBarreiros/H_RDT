@@ -165,11 +165,14 @@ gcloud compute ssh YOUR_TRAINING_INSTANCE1 --zone us-central1-a
 sudo mkdir -p /mnt/disks/hrdt-data
 
 # Mount (NOT formatting - using existing data!)
-sudo mount /dev/disk/by-id/google-hrdt-data /mnt/disks/hrdt-data
+sudo mount /dev/disk/by-id/google-hrdt-data-instance1 /mnt/disks/hrdt-data
+
+# verify the disk exists
+sudo blkid -s UUID -o value /dev/disk/by-id/google-hrdt-data-instance1
 
 # Make permanent
-echo UUID=$(sudo blkid -s UUID -o value /dev/disk/by-id/google-hrdt-data) \
-    /mnt/disks/hrdt-data ext4 defaults 0 2 | \
+echo UUID=$(sudo blkid -s UUID -o value /dev/disk/by-id/google-hrdt-data-instance1) \
+    /mnt/disks/hrdt-data ext4 discard,defaults,nofail 0 2 | \
     sudo tee -a /etc/fstab
 
 # Verify data is there
@@ -188,7 +191,7 @@ bash setup_instance.sh
 source ~/.config/hrdt/activate.sh
 
 # Set paths
-export EGODEX_DATA_ROOT="/path/to/egodex/organized"  # Raw data location
+export EGODEX_DATA_ROOT="/mnt/disks/hrdt-data/egodex/organized"  # Raw data location
 export HRDT_OUTPUT_DIR="/mnt/disks/hrdt-data/processed"  # Use cached data
 ```
 

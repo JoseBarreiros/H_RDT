@@ -61,6 +61,15 @@ else
     echo "   ⚠️  requirements.txt not found, skipping package installation"
 fi
 
+# 4b. Download vision encoder models if not already present
+echo ""
+if [ ! -f "bak/dino-siglip/vit_large_patch14_reg4_dinov2.lvd142m/pytorch_model.bin" ]; then
+    echo "📥 Downloading vision encoder models..."
+    python download_vision_models.py
+else
+    echo "✅ Vision encoder models already present"
+fi
+
 # 5. Create configuration file
 echo ""
 echo "⚙️  Creating configuration file..."
@@ -84,7 +93,7 @@ export T5_MODEL_PATH="google/t5-v1_1-xxl"
 
 # Training config
 export WANDB_PROJECT="h-rdt"
-export WANDB_ENTITY="jose-barreiros-879"
+export WANDB_ENTITY="jose-barreiros-879-jb"
 
 # CUDA/CUTLASS
 export CUDA_HOME=/usr/local/cuda
@@ -142,6 +151,26 @@ echo ""
 echo "🔍 Checking GPU availability..."
 if command -v nvidia-smi &> /dev/null; then
     nvidia-smi --query-gpu=name,driver_version --format=csv
+    
+    # Install nvtop for GPU monitoring (optional)
+    echo ""
+    echo "🔧 GPU monitoring tool installation..."
+    if command -v nvtop &> /dev/null; then
+        echo "   ✅ nvtop already installed"
+    else
+        read -p "   Install nvtop for GPU monitoring? (y/N) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            echo "   Installing nvtop..."
+            if [ -f "install_nvtop.sh" ]; then
+                bash install_nvtop.sh
+            else
+                echo "   ⚠️  install_nvtop.sh not found, skipping"
+            fi
+        else
+            echo "   Skipping nvtop installation"
+        fi
+    fi
 else
     echo "   ⚠️  nvidia-smi not found - GPUs may not be accessible"
     echo "      For GCP instances with GPUs, the NVIDIA driver should be auto-installed"
@@ -158,13 +187,16 @@ echo "Quick start:"
 echo "1. Activate environment:"
 echo "   source ~/.config/hrdt/activate.sh"
 echo ""
-echo "2. Verify GPU access (if using GPUs):"
+echo "2. Monitor GPUs (if installed):"
+echo "   nvtop              # Interactive GPU monitor"
+echo ""
+echo "3. Verify GPU access (if using GPUs):"
 echo "   python -c 'import torch; print(f\"CUDA available: {torch.cuda.is_available()}\")'"
 echo ""
-echo "3. Verify dataset:"
+echo "4. Verify dataset:"
 echo "   python verify_dataset.py --data_root \$EGODEX_DATA_ROOT"
 echo ""
-echo "4. Start training:"
+echo "5. Start training:"
 echo "   bash pretrain.sh"
 echo ""
 echo "💡 For scaling law experiments, see SCALING_LAW_GUIDE.md"
