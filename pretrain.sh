@@ -9,7 +9,7 @@ export CFLAGS="-I/usr/include"
 export LDFLAGS="-L/usr/lib/x86_64-linux-gnu"
 export CUTLASS_PATH="${CUTLASS_PATH:-/usr/local/cutlass}"
 
-export WANDB_PROJECT="hrdt"
+export WANDB_PROJECT="h-rdt"
 export OUTPUT_DIR="./checkpoints/pretrain"
 
 export VISION_ENCODER_NAME="dino-siglip"

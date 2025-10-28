@@ -76,15 +76,15 @@ export HRDT_PROJECT_ROOT="$HOME/H_RDT"
 export PYTHONPATH="${HRDT_PROJECT_ROOT}:${PYTHONPATH}"
 
 # Update these paths for your setup
-export EGODEX_DATA_ROOT="/home/jose-barreiros/egodex/organized"  # Raw data
-export HRDT_OUTPUT_DIR="/mnt/disks/hrdt-data/processed"           # Preprocessed data
+export EGODEX_DATA_ROOT="/mnt/disks/hrdt-data/egodex/organized"   # Raw + preprocessed data on disk
+export HRDT_OUTPUT_DIR="/mnt/disks/hrdt-data/egodex/organized"    # Same location for preprocessed data
 
 # Model paths
 export T5_MODEL_PATH="google/t5-v1_1-xxl"
 
 # Training config
-export WANDB_PROJECT="hrdt-scaling-laws"
-export WANDB_ENTITY="your-entity"  # Update this
+export WANDB_PROJECT="h-rdt"
+export WANDB_ENTITY="jose-barreiros-879"
 
 # CUDA/CUTLASS
 export CUDA_HOME=/usr/local/cuda
@@ -119,19 +119,36 @@ chmod +x ~/.config/hrdt/activate.sh
 echo ""
 echo "🔍 Checking data directory..."
 if [ -d "/mnt/disks/hrdt-data" ]; then
-    if [ -f "/mnt/disks/hrdt-data/processed/egodex_stat.json" ]; then
-        echo "   ✅ Preprocessed data found at /mnt/disks/hrdt-data"
-        ls -lh /mnt/disks/hrdt-data/processed/ | head -5
+    if [ -d "/mnt/disks/hrdt-data/egodex/organized" ]; then
+        echo "   ✅ Data found at /mnt/disks/hrdt-data/egodex/organized"
+        du -sh /mnt/disks/hrdt-data/egodex/organized/ | head -1
+        echo ""
+        echo "   Checking for preprocessed files..."
+        find /mnt/disks/hrdt-data/egodex/organized -name "*.pt" | wc -l | xargs echo "   Language embeddings (.pt files):"
+        if [ -f "datasets/pretrain/egodex_stat.json" ]; then
+            echo "   ✅ Statistics file found in local repo"
+        fi
     else
-        echo "   ⚠️  Disk mounted but no preprocessed data found"
-        echo "      Update HRDT_OUTPUT_DIR in ~/.config/hrdt/config.sh"
+        echo "   ⚠️  Disk mounted but no data found at /mnt/disks/hrdt-data/egodex/organized"
+        echo "      Follow INSTANCE_SETUP.md to set up the persistent disk"
     fi
 else
     echo "   ⚠️  Persistent disk not mounted"
-    echo "      If using persistent disk, follow INSTANCE_SETUP.md to mount it"
+    echo "      Follow INSTANCE_SETUP.md to mount the disk"
 fi
 
-# 8. Final instructions
+# 8. Check GPU availability
+echo ""
+echo "🔍 Checking GPU availability..."
+if command -v nvidia-smi &> /dev/null; then
+    nvidia-smi --query-gpu=name,driver_version --format=csv
+else
+    echo "   ⚠️  nvidia-smi not found - GPUs may not be accessible"
+    echo "      For GCP instances with GPUs, the NVIDIA driver should be auto-installed"
+    echo "      If training fails, check GPU driver installation"
+fi
+
+# 9. Final instructions
 echo ""
 echo "=========================================="
 echo "✅ Setup complete!"
@@ -141,8 +158,8 @@ echo "Quick start:"
 echo "1. Activate environment:"
 echo "   source ~/.config/hrdt/activate.sh"
 echo ""
-echo "2. Update paths in config if needed:"
-echo "   nano ~/.config/hrdt/config.sh"
+echo "2. Verify GPU access (if using GPUs):"
+echo "   python -c 'import torch; print(f\"CUDA available: {torch.cuda.is_available()}\")'"
 echo ""
 echo "3. Verify dataset:"
 echo "   python verify_dataset.py --data_root \$EGODEX_DATA_ROOT"
@@ -150,6 +167,7 @@ echo ""
 echo "4. Start training:"
 echo "   bash pretrain.sh"
 echo ""
+echo "💡 For scaling law experiments, see SCALING_LAW_GUIDE.md"
 echo "💡 For multi-instance setup, see INSTANCE_SETUP.md"
 echo "=========================================="
 

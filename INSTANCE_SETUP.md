@@ -200,16 +200,17 @@ accelerate launch --main_process_port 29500 main.py \
     --pretrained_vision_encoder_name_or_path="dino-siglip" \
     --deepspeed configs/zero1.json \
     --config_path configs/hrdt_pretrain.yaml \
-    --output_dir ./checkpoints/scaling_p10 \
-    --train_batch_size 32 \
+    --output_dir ./checkpoints/scaling_p{10} \
+    --train_batch_size 48 \
+    --sample_batch_size 32 \
     --max_train_steps 100000 \
     --learning_rate 1e-4 \
-    --data_percentage 0.1 \
+    --data_percentage {0.1} \
     --seed 42 \
-    --checkpointing_period 5000 \
+    --checkpointing_period 10000 \
     --checkpoints_total_limit 40 \
-    --sample_period 500 \
-    --precomp_lang_embed \
+    --sample_period 1000 \
+    --lr_scheduler=constant_with_warmup \
     --mixed_precision bf16 \
     --dataloader_num_workers 32 \
     --dataset_type pretrain \
@@ -217,6 +218,7 @@ accelerate launch --main_process_port 29500 main.py \
     --upsample_rate 3 \
     --image_aug \
     --gradient_checkpointing \
+    --precomp_lang_embed \
     --training_mode lang \
     --mode pretrain
 

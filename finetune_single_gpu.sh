@@ -13,7 +13,7 @@ export CFLAGS="-I/usr/include"
 export LDFLAGS="-L/usr/lib/x86_64-linux-gnu"
 
 # Project settings
-export WANDB_PROJECT="hrdt-robotwin2"
+export WANDB_PROJECT="h-rdt"
 export OUTPUT_DIR="./checkpoints/robotwin2"
 
 export VISION_ENCODER_NAME="dino-siglip"
