@@ -299,7 +299,7 @@ def train(args, logger):
         shuffle=True,
         collate_fn=data_collator,
         num_workers=args.dataloader_num_workers,
-        pin_memory=True,
+        pin_memory=False,  # Disabled to prevent CUDA pin_memory errors
         persistent_workers=True,
     )
     
@@ -309,7 +309,7 @@ def train(args, logger):
         shuffle=True,
         collate_fn=data_collator,
         num_workers=0,
-        pin_memory=True,
+        pin_memory=False,  # Disabled to prevent CUDA pin_memory errors
         persistent_workers=False,
     )
 

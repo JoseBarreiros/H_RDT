@@ -236,6 +236,30 @@ elif self.dataset_name == "your_robot_name":
 
 **Note:** All hardcoded user-specific paths have been removed and replaced with generic paths or environment variables. See [LINGXUAN_CLEANUP.md](LINGXUAN_CLEANUP.md) for details.
 
+## 🌐 Multi-Instance Setup for Scaling Law Experiments
+
+Running scaling law experiments across multiple GCP instances? Use our persistent disk strategy:
+
+📚 **[PERSISTENT_DISK_SETUP.md](PERSISTENT_DISK_SETUP.md)** - If you already have preprocessed data:
+- Move existing data to a persistent disk
+- Step-by-step manual instructions
+- Copy ~1.8TB of data to disk (takes 1-2 hours)
+- Create snapshots for sharing
+
+📚 **[INSTANCE_SETUP.md](INSTANCE_SETUP.md)** - Complete multi-instance guide:
+- Preprocess data once on a shared persistent disk
+- Create snapshots for each training instance
+- Run parallel experiments with different `--data_percentage`
+- Cost ~$1,500-2,000 for full scaling law study
+
+**Quick Start:**
+1. If you have data already: Follow PERSISTENT_DISK_SETUP.md
+2. Clone repo and run `bash setup_instance.sh` on each instance
+3. Follow INSTANCE_SETUP.md to create training instances
+4. Start training with different data percentages
+
+**Key advantage:** Preprocess data once (~12-24 hours), then instantly available on all instances via persistent disk snapshots. No need to download 950GB+ per instance.
+
 ## 📞 Contact Us
 
 ### WeChat Discussion Group
