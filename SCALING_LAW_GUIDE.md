@@ -87,6 +87,12 @@ accelerate launch --main_process_port 29500 main.py \
     --mixed_precision bf16
 ```
 
+## Upload the checkpoint to GCS
+
+```bash
+gsutil -m cp -r ./checkpoints/scaling_p10/checkpoint-20000 gs://cortex-hrdt/scaling_p10
+```
+
 ## 📈 Understanding the Results
 
 ### Subsampling Behavior

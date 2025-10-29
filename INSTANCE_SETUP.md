@@ -138,6 +138,10 @@ gcloud compute snapshots list --filter="name:hrdt-preprocessed"
 
 For each training instance (running different `data_percentage`):
 
+**2.0 Make sure the instance has full access to all Cloud APIs**
+
+In the GUI select Access scopes: select Allow full access to all Cloud APIs
+
 **2.1 Create and Attach Disk (per instance)**
 
 ```bash
@@ -313,6 +317,18 @@ gcloud compute disks resize hrdt-data-cache --size=1000 --zone us-central1-a
 ```
 
 ## Quick Reference
+
+### Verify Your Data
+
+**Verify EgoDex data:**
+```bash
+python verify_dataset.py --data_root /mnt/disks/hrdt-data/egodex/organized
+```
+
+**Verify RobotWin2 Table 8 data:**
+```bash
+python verify_robotwin2_dataset.py --data_root /mnt/disks/hrdt-data/robotwin2/table8_tasks/extracted
+```
 
 ### Check Disk Status
 ```bash

@@ -268,7 +268,7 @@ def train(args, logger):
         val=False,
         use_precomp_lang_embed=args.precomp_lang_embed,
         task_name=args.task_name,
-        dataset_name="egodex",
+        dataset_name=args.dataset_name,
         data_percentage=args.data_percentage if hasattr(args, 'data_percentage') else 1.0,
         seed=args.seed if hasattr(args, 'seed') else 42,
     )
@@ -284,7 +284,7 @@ def train(args, logger):
         val=True,
         use_precomp_lang_embed=args.precomp_lang_embed,
         task_name=args.task_name,
-        dataset_name="egodex",
+        dataset_name=args.dataset_name,
         data_percentage=1.0,  # Always use 100% of validation data
         seed=args.seed if hasattr(args, 'seed') else 42,
     )

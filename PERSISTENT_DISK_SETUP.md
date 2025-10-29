@@ -17,13 +17,21 @@ This guide explains how to create a persistent disk and move your preprocessed E
 - Enable parallel scaling law experiments
 
 **Data location:**
-- Currently at: `~/egodex/organized/` (~1.8TB total)
-- Will be at: `/mnt/disks/hrdt-data/egodex/organized/`
-- Includes:
-  - MP4 videos: ~850GB
-  - Preprocessed .hdf5 files: ~477GB
-  - Preprocessed .pt files: ~477GB
-  - Total: ~1.8TB
+- **EgoDex Data**: Currently at `~/egodex/organized/` (~1.8TB total)
+  - Will be at: `/mnt/disks/hrdt-data/egodex/organized/`
+  - Includes:
+    - MP4 videos: ~850GB
+    - Preprocessed .hdf5 files: ~477GB
+    - Preprocessed .pt files: ~477GB
+    - Total: ~1.8TB
+
+- **RobotWin2 Table 8 Data**: Currently at `/mnt/disks/hrdt-data/robotwin2/table8_tasks/` (~17GB total)
+  - Already on persistent disk: `/mnt/disks/hrdt-data/robotwin2/table8_tasks/`
+  - Includes:
+    - Compressed zip files: ~6.6GB
+    - Extracted HDF5 data: ~10.4GB
+    - Language embeddings: Pre-computed in repository
+    - Total: ~17GB
 
 ## Prerequisites
 
@@ -32,6 +40,17 @@ This guide explains how to create a persistent disk and move your preprocessed E
 - `gcloud` CLI installed and configured
 
 ## Step-by-Step Instructions
+
+### Step 0: Verify RobotWin2 Table 8 Data (Optional)
+
+If you want to verify your Table 8 data is ready for fine-tuning:
+
+```bash
+# Verify Table 8 data integrity and training compatibility
+python verify_robotwin2_dataset.py --data_root /mnt/disks/hrdt-data/robotwin2/table8_tasks/extracted
+
+# Expected output: "🎉 All Table 8 tasks verified successfully!"
+```
 
 ### Step 1: Create Persistent Disk
 
@@ -148,17 +167,55 @@ gcloud compute snapshots list --filter="name:hrdt-preprocessed"
 
 ### ✅ Your Data Is Now Available At
 
+**EgoDex Data:**
 ```bash
 /mnt/disks/hrdt-data/egodex/organized
+```
+
+**RobotWin2 Table 8 Data:**
+```bash
+/mnt/disks/hrdt-data/robotwin2/table8_tasks/extracted
+```
+
+### ✅ Verify Your Data
+
+**Verify EgoDex data:**
+```bash
+python verify_dataset.py --data_root /mnt/disks/hrdt-data/egodex/organized
+```
+
+**Verify RobotWin2 Table 8 data:**
+```bash
+python verify_robotwin2_dataset.py --data_root /mnt/disks/hrdt-data/robotwin2/table8_tasks/extracted
 ```
 
 ### ✅ Update Training Configuration
 
 Update your training scripts to use the persistent disk data:
 
+**For EgoDex pre-training:**
 ```bash
 # In ~/.config/hrdt/config.sh or your training script
+export EGODEX_DATA_ROOT="/mnt/disks/hrdt-data/egodex/organized"
 export HRDT_OUTPUT_DIR="/mnt/disks/hrdt-data/egodex/organized"
+```
+
+**For RobotWin2 Table 8 fine-tuning:**
+```bash
+# Set RobotWin2 data path
+export ROBOTWIN_DATA_ROOT="/mnt/disks/hrdt-data/robotwin2/table8_tasks/extracted"
+
+# Run fine-tuning
+accelerate launch main.py \
+    --dataset_name="robotwin_agilex" \
+    --pretrained_vision_encoder_name_or_path="dino-siglip" \
+    --config_path configs/hrdt_finetune.yaml \
+    --output_dir ./checkpoints/table8_finetune \
+    --train_batch_size 32 \
+    --max_train_steps 10000 \
+    --learning_rate 1e-4 \
+    --dataset_type finetune \
+    --report_to wandb
 ```
 
 ### ✅ Start Training

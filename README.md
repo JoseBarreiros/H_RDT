@@ -144,6 +144,18 @@ accelerate launch --main_process_port 29500 main.py \
 
 ### Stage 2: Cross-Embodiment Fine-tuning
 
+#### 🎯 Table 8 Tasks Ready for Fine-tuning
+
+**✅ Table 8 Tasks Downloaded and Extracted!**
+
+We have successfully downloaded and extracted the **13 tasks** needed to replicate Table 8 from the H-RDT paper:
+
+- **Location**: `/mnt/disks/hrdt-data/robotwin2/table8_tasks/extracted/`
+- **Tasks**: 13 tasks × 50 episodes each = 650 total episodes
+- **Size**: 10.4 GB extracted data
+- **Platform**: Aloha-Agilex dual-arm robot
+- **Expected Results**: 68.7% (Easy) / 25.6% (Hard) average success rate
+
 #### Data Preprocessing (for RobotWin2)
 **Pre-computed language embeddings are already provided - no preprocessing needed!**
 
@@ -161,6 +173,28 @@ accelerate launch --main_process_port 29500 main.py \
    ```
 
 #### Robot Fine-tuning (load human pre-trained backbone):
+
+**For Table 8 Tasks:**
+1. Set dataset path:
+   ```bash
+   export ROBOTWIN_DATA_ROOT="/mnt/disks/hrdt-data/robotwin2/table8_tasks/extracted"
+   ```
+
+2. Run fine-tuning:
+   ```bash
+   accelerate launch main.py \
+       --dataset_name="robotwin_agilex" \
+       --pretrained_vision_encoder_name_or_path="dino-siglip" \
+       --config_path configs/hrdt_finetune.yaml \
+       --output_dir ./checkpoints/table8_finetune \
+       --train_batch_size 32 \
+       --max_train_steps 10000 \
+       --learning_rate 1e-4 \
+       --dataset_type finetune \
+       --report_to wandb
+   ```
+
+**For Other Robot Datasets:**
 1. Configure dataset:
    ```python
    # Edit datasets/dataset.py line ~45
@@ -259,6 +293,38 @@ Running scaling law experiments across multiple GCP instances? Use our persisten
 4. Start training with different data percentages
 
 **Key advantage:** Preprocess data once (~12-24 hours), then instantly available on all instances via persistent disk snapshots. No need to download 950GB+ per instance.
+
+## 📁 Additional Scripts
+
+### Table 8 Tasks Management
+
+We've created several scripts to help manage the Table 8 tasks:
+
+- **`download_table8_tasks.py`** - Downloads the 13 Table 8 tasks from Hugging Face
+- **`extract_table8_data.py`** - Extracts all zip files and organizes the data structure
+- **`verify_robotwin2_dataset.py`** - Comprehensive verification of Table 8 data and training compatibility
+- **`TABLE8_DOWNLOAD_SUMMARY.md`** - Summary of downloaded tasks and file sizes
+- **`TABLE8_EXTRACTION_SUMMARY.md`** - Detailed extraction results and data structure
+
+### Usage:
+```bash
+# Download Table 8 tasks (already completed)
+python download_table8_tasks.py
+
+# Extract zip files (already completed)
+python extract_table8_data.py
+
+# Verify data integrity and training compatibility
+python verify_robotwin2_dataset.py --data_root /mnt/disks/hrdt-data/robotwin2/table8_tasks/extracted
+```
+
+### Data Verification
+
+The verification script checks:
+- ✅ **HDF5 Structure**: Dual-arm actions (14D), multi-camera observations
+- ✅ **Language Embeddings**: T5-XXL embeddings (4096D) for all 13 tasks
+- ✅ **Training Compatibility**: Config file compatibility with data structure
+- ✅ **Data Integrity**: All 650 episodes across 13 tasks
 
 ## 📞 Contact Us
 

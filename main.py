@@ -259,6 +259,13 @@ def parse_args(input_args=None):
         help="Whether to load the pretrain dataset or finetune dataset."
     )
     
+    parser.add_argument('--dataset_name',
+        type=str,
+        default="egodex",
+        required=False,
+        help="Name of the dataset to use (e.g., 'egodex', 'robotwin_agilex')."
+    )
+    
     parser.add_argument('--upsample_rate',
         type=int,
         default=1,
