@@ -24,7 +24,9 @@ We have successfully completed all the setup steps needed to replicate Table 8 f
 
 ### 4. **Code Updates**
 - Added `--dataset_name` argument to `main.py` for dynamic dataset selection
+- Added `--robotwin_mode`, `--robotwin_task_name`, `--robotwin_hdf5_folder` arguments for single-task training
 - Updated `train/train.py` to use the dataset name argument
+- Updated `datasets/dataset.py` to support both single-task and multi-task modes
 - Created automated download and extraction scripts
 
 ### 5. **Documentation Updated**
@@ -61,10 +63,14 @@ We have successfully completed all the setup steps needed to replicate Table 8 f
 
 ### 1. **Set Environment Variables**
 ```bash
-export ROBOTWIN_DATA_ROOT="/mnt/disks/hrdt-data/robotwin2/table8_tasks/extracted"
+export ROBOTWIN2_DATA_ROOT="/mnt/disks/hrdt-data/robotwin2/table8_tasks/extracted"
 ```
 
-### 2. **Run Fine-tuning**
+### 2. **Choose Training Mode**
+
+#### Option A: **Multi-Task Training** (Default)
+Train on all 13 tasks simultaneously with balanced sampling:
+
 ```bash
 accelerate launch --main_process_port 29500 main.py \
   --pretrained_vision_encoder_name_or_path="dino-siglip" \
@@ -83,6 +89,7 @@ accelerate launch --main_process_port 29500 main.py \
   --dataloader_num_workers 24 \
   --dataset_type "finetune" \
   --dataset_name "robotwin_agilex" \
+  --robotwin_mode "multi_task" \
   --report_to wandb \
   --upsample_rate 3 \
   --image_aug \
@@ -93,7 +100,66 @@ accelerate launch --main_process_port 29500 main.py \
   --pretrained_backbone_path "./checkpoints/pretrain-0618/checkpoint-500000/pytorch_model.bin"
 ```
 
-### 3. **Expected Results**
+#### Option B: **Single-Task Training** (For Table 8 Replication)
+Train on one task at a time. Run separate fine-tuning for each of the 13 tasks:
+
+```bash
+# Example: Fine-tune on "grab_roller" task
+accelerate launch --main_process_port 29500 main.py \
+  --pretrained_vision_encoder_name_or_path="dino-siglip" \
+  --deepspeed="./configs/zero1.json" \
+  --config_path "configs/hrdt_finetune.yaml" \
+  --output_dir "./checkpoints/table8_grab_roller" \
+  --train_batch_size 16 \
+  --sample_batch_size 16 \
+  --max_train_steps 10000 \
+  --checkpointing_period 1000 \
+  --sample_period 500 \
+  --checkpoints_total_limit 10 \
+  --lr_scheduler "constant_with_warmup" \
+  --learning_rate 1e-4 \
+  --mixed_precision "bf16" \
+  --dataloader_num_workers 24 \
+  --dataset_type "finetune" \
+  --dataset_name "robotwin_agilex" \
+  --robotwin_mode "single_task" \
+  --robotwin_task_name "grab_roller" \
+  --robotwin_hdf5_folder "aloha-agilex_clean_50/data" \
+  --report_to wandb \
+  --upsample_rate 3 \
+  --image_aug \
+  --gradient_checkpointing \
+  --precomp_lang_embed \
+  --training_mode "lang" \
+  --mode "finetune" \
+  --pretrained_backbone_path "./checkpoints/pretrain-0618/checkpoint-500000/pytorch_model.bin"
+```
+
+**Repeat for all 13 tasks:**
+- `grab_roller`, `handover_mic`, `lift_pot`, `move_can_pot`, `open_laptop`
+- `pick_dual_bottles`, `place_dual_shoes`, `place_object_basket`, `place_phone_stand`
+- `put_bottles_dustbin`, `put_object_cabinet`, `stack_blocks_two`, `stack_bowls_two`
+
+### 3. **New RobotWin Arguments**
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `--robotwin_mode` | `"multi_task"` | Dataset mode: `"single_task"` or `"multi_task"` |
+| `--robotwin_task_name` | `None` | Task name for single-task mode (required if `robotwin_mode="single_task"`) |
+| `--robotwin_hdf5_folder` | `"aloha-agilex_clean_50/data"` | HDF5 folder path within task directory |
+
+**Data Path Structure:**
+```
+ROBOTWIN2_DATA_ROOT/
+├── {task_name}/
+│   └── {robotwin_hdf5_folder}/
+│       ├── episode0.hdf5
+│       └── ...
+```
+
+Example: `/mnt/disks/hrdt-data/robotwin2/table8_tasks/extracted/grab_roller/aloha-agilex_clean_50/data/`
+
+### 4. **Expected Results**
 Based on Table 8 from the H-RDT paper:
 - **Easy mode**: ~68.7% average success rate
 - **Hard mode**: ~25.6% average success rate

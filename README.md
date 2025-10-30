@@ -175,15 +175,18 @@ We have successfully downloaded and extracted the **13 tasks** needed to replica
 #### Robot Fine-tuning (load human pre-trained backbone):
 
 **For Table 8 Tasks:**
+
+**Option 1: Multi-Task Training** (train on all tasks simultaneously)
 1. Set dataset path:
    ```bash
-   export ROBOTWIN_DATA_ROOT="/mnt/disks/hrdt-data/robotwin2/table8_tasks/extracted"
+   export ROBOTWIN2_DATA_ROOT="/mnt/disks/hrdt-data/robotwin2/table8_tasks/extracted"
    ```
 
 2. Run fine-tuning:
    ```bash
    accelerate launch main.py \
        --dataset_name="robotwin_agilex" \
+       --robotwin_mode="multi_task" \
        --pretrained_vision_encoder_name_or_path="dino-siglip" \
        --config_path configs/hrdt_finetune.yaml \
        --output_dir ./checkpoints/table8_finetune \
@@ -191,8 +194,43 @@ We have successfully downloaded and extracted the **13 tasks** needed to replica
        --max_train_steps 10000 \
        --learning_rate 1e-4 \
        --dataset_type finetune \
+       --mode finetune \
+       --pretrained_backbone_path "./checkpoints/pretrain-0618/checkpoint-500000/pytorch_model.bin" \
        --report_to wandb
    ```
+
+**Option 2: Single-Task Training** (for Table 8 replication - train on one task at a time)
+1. Set dataset path:
+   ```bash
+   export ROBOTWIN2_DATA_ROOT="/mnt/disks/hrdt-data/robotwin2/table8_tasks/extracted"
+   ```
+
+2. Run fine-tuning for each task:
+   ```bash
+   # Example: Fine-tune on "grab_roller"
+   accelerate launch main.py \
+       --dataset_name="robotwin_agilex" \
+       --robotwin_mode="single_task" \
+       --robotwin_task_name="grab_roller" \
+       --robotwin_hdf5_folder="aloha-agilex_clean_50/data" \
+       --pretrained_vision_encoder_name_or_path="dino-siglip" \
+       --config_path configs/hrdt_finetune.yaml \
+       --output_dir ./checkpoints/table8_grab_roller \
+       --train_batch_size 32 \
+       --max_train_steps 10000 \
+       --learning_rate 1e-4 \
+       --dataset_type finetune \
+       --mode finetune \
+       --pretrained_backbone_path "./checkpoints/pretrain-0618/checkpoint-500000/pytorch_model.bin" \
+       --report_to wandb
+   ```
+
+   **Repeat for all 13 tasks:** `grab_roller`, `handover_mic`, `lift_pot`, `move_can_pot`, `open_laptop`, `pick_dual_bottles`, `place_dual_shoes`, `place_object_basket`, `place_phone_stand`, `put_bottles_dustbin`, `put_object_cabinet`, `stack_blocks_two`, `stack_bowls_two`
+
+**RobotWin Arguments:**
+- `--robotwin_mode`: `"single_task"` or `"multi_task"` (default: `"multi_task"`)
+- `--robotwin_task_name`: Task name for single-task mode (required if `robotwin_mode="single_task"`)
+- `--robotwin_hdf5_folder`: HDF5 folder path (default: `"aloha-agilex_clean_50/data"`)
 
 **For Other Robot Datasets:**
 1. Configure dataset:

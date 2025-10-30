@@ -324,6 +324,28 @@ def parse_args(input_args=None):
         help="Percentage of EgoDex data to use for scaling law experiments (1.0 = 100%, 0.1 = 10%, etc.)"
     )
 
+    parser.add_argument(
+        "--robotwin_mode",
+        type=str,
+        default="multi_task",
+        choices=["single_task", "multi_task"],
+        help="RobotWin dataset mode: 'single_task' for training on one task, 'multi_task' for training on all tasks."
+    )
+
+    parser.add_argument(
+        "--robotwin_task_name",
+        type=str,
+        default=None,
+        help="Task name for RobotWin single-task mode (e.g., 'grab_roller', 'open_laptop', 'stack_bowls_two'). Required if robotwin_mode='single_task'."
+    )
+
+    parser.add_argument(
+        "--robotwin_hdf5_folder",
+        type=str,
+        default="aloha-agilex_clean_50/data",
+        help="HDF5 folder path for RobotWin single-task mode (e.g., 'aloha-agilex_clean_50/data' or 'demo_clean/data')."
+    )
+
     if input_args is not None:
         args = parser.parse_args(input_args)
     else:

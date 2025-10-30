@@ -271,6 +271,9 @@ def train(args, logger):
         dataset_name=args.dataset_name,
         data_percentage=args.data_percentage if hasattr(args, 'data_percentage') else 1.0,
         seed=args.seed if hasattr(args, 'seed') else 42,
+        robotwin_mode=getattr(args, 'robotwin_mode', 'multi_task'),
+        robotwin_task_name=getattr(args, 'robotwin_task_name', None),
+        robotwin_hdf5_folder=getattr(args, 'robotwin_hdf5_folder', 'aloha-agilex_clean_50/data'),
     )
     
     val_dataset = VLAConsumerDataset(
@@ -287,6 +290,9 @@ def train(args, logger):
         dataset_name=args.dataset_name,
         data_percentage=1.0,  # Always use 100% of validation data
         seed=args.seed if hasattr(args, 'seed') else 42,
+        robotwin_mode=getattr(args, 'robotwin_mode', 'multi_task'),
+        robotwin_task_name=getattr(args, 'robotwin_task_name', None),
+        robotwin_hdf5_folder=getattr(args, 'robotwin_hdf5_folder', 'aloha-agilex_clean_50/data'),
     )
 
     # Create data collator for batching

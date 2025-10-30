@@ -44,6 +44,9 @@ class VLAConsumerDataset(Dataset):
         dataset_name="egodex",  # Add dataset_name parameter
         data_percentage=1.0,
         seed=42,
+        robotwin_mode="multi_task",
+        robotwin_task_name=None,
+        robotwin_hdf5_folder="aloha-agilex_clean_50/data",
     ):
         super(VLAConsumerDataset, self).__init__()
         self.dataset_name = dataset_name
@@ -72,23 +75,29 @@ class VLAConsumerDataset(Dataset):
                 # stat_path="/path/to/custom/egodex_stat.json",
             )
         elif self.dataset_name == "robotwin_agilex":
-            self.hdf5_dataset = RobotwinAgilexDataset(
-                mode="multi_task",
-                config=config,
-                # Note: override default paths
-                multi_task_root_dir=os.environ.get("ROBOTWIN2_DATA_ROOT", "/home/jose-barreiros/development/H_RDT/robotwin2_dataset/dataset"),
-            )
-            '''
-            self.hdf5_dataset = RobotwinAgilexDataset(
-                mode="single_task",
-                task_name=task_name,
-                hdf5_folder="Aloha-AgileX/data",
-                max_episodes=50,
-                config=config
-                # Note: override default paths
-                # single_task_root_dir="/path/to/your/robotwin2/single",
-            )
-            '''
+            if robotwin_mode == "single_task":
+                # Single-task mode: train on one specific task
+                if robotwin_task_name is None:
+                    raise ValueError("robotwin_task_name must be provided when robotwin_mode='single_task'")
+                
+                self.hdf5_dataset = RobotwinAgilexDataset(
+                    mode="single_task",
+                    task_name=robotwin_task_name,
+                    hdf5_folder=robotwin_hdf5_folder,
+                    single_task_root_dir=os.environ.get("ROBOTWIN2_DATA_ROOT", "/home/jose-barreiros/development/H_RDT/robotwin2_dataset/dataset"),
+                    config=config,
+                    upsample_rate=upsample_rate,
+                    val=val,
+                )
+            else:
+                # Multi-task mode: train on all tasks (default)
+                self.hdf5_dataset = RobotwinAgilexDataset(
+                    mode="multi_task",
+                    config=config,
+                    multi_task_root_dir=os.environ.get("ROBOTWIN2_DATA_ROOT", "/home/jose-barreiros/development/H_RDT/robotwin2_dataset/dataset"),
+                    upsample_rate=upsample_rate,
+                    val=val,
+                )
         else:
             raise ValueError(f"Unknown dataset_name: {self.dataset_name}")
             
