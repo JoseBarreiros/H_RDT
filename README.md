@@ -232,6 +232,39 @@ We have successfully downloaded and extracted the **13 tasks** needed to replica
 - `--robotwin_task_name`: Task name for single-task mode (required if `robotwin_mode="single_task"`)
 - `--robotwin_hdf5_folder`: HDF5 folder path (default: `"aloha-agilex_clean_50/data"`)
 
+📖 **For detailed fine-tuning guide, see [ROBOTWIN_TABLE8_SETUP.md](ROBOTWIN_TABLE8_SETUP.md)**
+
+### Stage 3: Evaluation in RobotWin Simulation
+
+After fine-tuning, evaluate your checkpoint in RobotWin simulation:
+
+#### Quick Start
+
+```bash
+# 1. Convert DeepSpeed checkpoint to consolidated format
+bash convert_deepspeed_checkpoint.sh
+
+# 2. Prepare checkpoint for RobotWin
+bash prepare_robotwin_evaluation.sh
+
+# 3. Run evaluation
+cd ~/RoboTwin/policy/H-RDT/inference/robotwin2_example/H-RDT
+source ~/.config/hrdt/activate.sh
+bash eval.sh
+```
+
+📖 **For detailed evaluation guide, see [ROBOTWIN_EVALUATION_README.md](ROBOTWIN_EVALUATION_README.md)**
+
+**Key Steps:**
+1. **Convert checkpoint:** DeepSpeed ZeRO-3 checkpoints need to be converted to consolidated format
+2. **Setup RobotWin:** Install dependencies and download assets (~15GB)
+3. **Prepare checkpoint:** Copy checkpoint, embeddings, and configs to RobotWin
+4. **Run evaluation:** Configure task and run evaluation script
+
+**Expected Results (Table 8):**
+- Easy mode (`demo_clean`): ~68.7% average success rate
+- Hard mode (`demo_randomized`): ~25.6% average success rate
+
 **For Other Robot Datasets:**
 1. Configure dataset:
    ```python

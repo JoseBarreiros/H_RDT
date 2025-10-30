@@ -186,3 +186,5 @@ bak/*
 # Large datasets and models
 t5-v1_1-xxl/
 robotwin2_dataset/
+# Third-party dependencies (should be installed, not committed)
+curobo/
