@@ -192,6 +192,9 @@ git clone <YOUR_REPO> H_RDT
 cd H_RDT
 bash setup_instance.sh
 
+# If setup_instance.sh fails, comment out the backports repository in /etc/apt/sources.list
+sudo sed -i 's/^deb.*bullseye-backports/# &/' /etc/apt/sources.list && sudo sed -i 's/^deb-src.*bullseye-backports/# &/' /etc/apt/sources.list && echo "Backports repositories commented out"
+
 source ~/.config/hrdt/activate.sh
 
 # Set paths

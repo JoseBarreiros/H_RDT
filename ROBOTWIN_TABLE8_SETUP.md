@@ -66,16 +66,31 @@ export ROBOTWIN_DATA_ROOT="/mnt/disks/hrdt-data/robotwin2/table8_tasks/extracted
 
 ### 2. **Run Fine-tuning**
 ```bash
-accelerate launch main.py \
-    --dataset_name="robotwin_agilex" \
-    --pretrained_vision_encoder_name_or_path="dino-siglip" \
-    --config_path configs/hrdt_finetune.yaml \
-    --output_dir ./checkpoints/table8_finetune \
-    --train_batch_size 32 \
-    --max_train_steps 10000 \
-    --learning_rate 1e-4 \
-    --dataset_type finetune \
-    --report_to wandb
+accelerate launch --main_process_port 29500 main.py \
+  --pretrained_vision_encoder_name_or_path="dino-siglip" \
+  --deepspeed="./configs/zero1.json" \
+  --config_path "configs/hrdt_finetune.yaml" \
+  --output_dir "./checkpoints/table8_finetune_pretrain0618" \
+  --train_batch_size 16 \
+  --sample_batch_size 16 \
+  --max_train_steps 10000 \
+  --checkpointing_period 1000 \
+  --sample_period 500 \
+  --checkpoints_total_limit 10 \
+  --lr_scheduler "constant_with_warmup" \
+  --learning_rate 1e-4 \
+  --mixed_precision "bf16" \
+  --dataloader_num_workers 24 \
+  --dataset_type "finetune" \
+  --dataset_name "robotwin_agilex" \
+  --report_to wandb \
+  --upsample_rate 3 \
+  --image_aug \
+  --gradient_checkpointing \
+  --precomp_lang_embed \
+  --training_mode "lang" \
+  --mode "finetune" \
+  --pretrained_backbone_path "./checkpoints/pretrain-0618/checkpoint-500000/pytorch_model.bin"
 ```
 
 ### 3. **Expected Results**
