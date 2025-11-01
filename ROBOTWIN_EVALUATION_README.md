@@ -125,6 +125,9 @@ python script/update_embodiment_config_path.py
 **This is a one-time setup** - copy the inference code and language embeddings:
 
 ```bash
+# Create directory structure first (if it doesn't exist)
+mkdir -p ~/RoboTwin/policy/H-RDT/inference/robotwin2_example/H-RDT
+
 # Copy inference code structure
 cp -r ~/H_RDT/inference/robotwin2_example/H-RDT/* \
       ~/RoboTwin/policy/H-RDT/inference/robotwin2_example/H-RDT/
@@ -201,6 +204,7 @@ cd ~/H_RDT
 source hrdt_env/bin/activate
 export HRDT_PROJECT_ROOT="$HOME/H_RDT"
 export PYTHONPATH="${HRDT_PROJECT_ROOT}:${PYTHONPATH}"
+
 cd ~/H_RDT/checkpoints/table8_finetune_pretrain0618/checkpoint-30
 
 python zero_to_fp32.py $(pwd) $(pwd)/pytorch_model_consolidated.bin
@@ -274,13 +278,43 @@ cd ~/RoboTwin/policy/H-RDT/inference/robotwin2_example/H-RDT
 nano eval.sh  # or your preferred editor
 ```
 
-Set these variables:
+**Important:** Ensure `eval.sh` contains the correct path calculation code. The script should look like this:
+
 ```bash
-task_name="grab_roller"         # Task to evaluate
+#!/bin/bash
+
+policy_name="H-RDT"
+task_name="grab_roller"         # Change this for each task
 task_config="demo_randomized"   # "demo_randomized" (Hard) or "demo_clean" (Easy)
 ckpt_setting="checkpoints/table8_checkpoint30"  # Change this for each checkpoint
-gpu_id="0"                      # GPU to use
+seed="42"
+gpu_id="0"
+
+export CUDA_VISIBLE_DEVICES=${gpu_id}
+echo -e "\033[33mgpu id (to use): ${gpu_id}\033[0m"
+
+# Calculate RoboTwin root directory (absolute path)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROBOTWIN_ROOT="$(cd "$SCRIPT_DIR/../../../../.." && pwd)"
+cd "$ROBOTWIN_ROOT"
+
+PYTHONWARNINGS=ignore::UserWarning \
+python script/eval_policy.py --config policy/$policy_name/deploy_policy.yml \
+    --overrides \
+    --task_name ${task_name} \
+    --task_config ${task_config} \
+    --ckpt_setting ${ckpt_setting} \
+    --seed ${seed} \
+    --policy_name ${policy_name}
 ```
+
+**Set these variables:**
+- `task_name`: Task to evaluate (e.g., `"grab_roller"`, `"handover_mic"`, etc.)
+- `task_config`: `"demo_randomized"` (Hard mode) or `"demo_clean"` (Easy mode)
+- `ckpt_setting`: Checkpoint path relative to policy directory (e.g., `"checkpoints/table8_checkpoint30"`)
+- `gpu_id`: GPU to use (e.g., `"0"`)
+
+**Note:** The path calculation code (lines 14-17) is essential - it ensures the script finds `script/eval_policy.py` regardless of where you run the script from.
 
 ### Run Evaluation
 
@@ -289,6 +323,7 @@ cd ~/RoboTwin/policy/H-RDT/inference/robotwin2_example/H-RDT
 
 # Option 1: Use activate.sh (if you have it)
 source ~/.config/hrdt/activate.sh
+cd ~/RoboTwin/policy/H-RDT/inference/robotwin2_example/H-RDT
 
 # Option 2: Manual activation (if activate.sh doesn't exist)
 cd ~/H_RDT
@@ -379,7 +414,7 @@ Based on H-RDT paper Table 8:
 - **Solution:** Use absolute paths or ensure you're in the correct directory
 
 **Problem:** `eval.sh` changes directory incorrectly
-- **Solution:** The script uses absolute paths calculated from script location
+- **Solution:** The script uses absolute paths calculated from script location. If you see path errors, ensure `eval.sh` uses the path calculation shown in the guide (lines 14-17).
 
 ### Asset Issues
 
