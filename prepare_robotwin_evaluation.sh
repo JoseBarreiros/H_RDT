@@ -7,7 +7,7 @@
 # - Cleans config.json
 #
 # ONE-TIME setup (dependencies, assets, code) should be done separately.
-# See ROBOTWIN_SETUP_TYPES.md for details.
+# See ROBOTWIN_EVALUATION_README.md for details.
 
 set -e
 
@@ -180,5 +180,5 @@ echo "  1. Update eval.sh: ckpt_setting=\"checkpoints/$CHECKPOINT_NAME\""
 echo "  2. Run evaluation: cd $ROBOTWIN_BASE/policy/H-RDT/inference/robotwin2_example/H-RDT && bash eval.sh"
 echo ""
 echo "Note: One-time setup (dependencies, assets, code) should be done separately."
-echo "      See ROBOTWIN_SETUP_TYPES.md for details."
+echo "      See ROBOTWIN_EVALUATION_README.md for details."
 

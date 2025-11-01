@@ -13,30 +13,41 @@ Complete guide for evaluating H-RDT fine-tuned checkpoints in RobotWin simulatio
 
 **These steps only need to be done once per machine/environment.**
 
-### Prerequisites
+## Prerequisites
 
 1. **RobotWin Repository**
    - Location: `~/RoboTwin`
    - Installation: See [RobotWin Installation Guide](https://robotwin-platform.github.io/doc/usage/robotwin-install.html)
 
-2. **System Requirements**
+2. **H-RDT Environment**
+   - Python virtual environment should be set up at `~/H_RDT/hrdt_env`
+   - If you don't have `~/.config/hrdt/activate.sh`, you can create it by running `bash setup_instance.sh` from `~/H_RDT`, or manually activate the environment
+
+3. **System Requirements**
    - Python 3.10+
    - CUDA-capable GPU
    - ~30GB free disk space (for assets)
 
 ### Step 1: Install RobotWin Dependencies
 
+**Note:** If you don't have `~/.config/hrdt/activate.sh`, you can either:
+1. Run `bash setup_instance.sh` from the H_RDT directory to create it, OR
+2. Manually activate the environment (see alternative below)
+
 ```bash
 cd ~/RoboTwin
+
+# Option 1: Use activate.sh (if you have it)
 source ~/.config/hrdt/activate.sh
 
-# Install RobotWin requirements
-pip install -r script/requirements.txt
+# Option 2: Manual activation (if activate.sh doesn't exist)
+cd ~/H_RDT
+source hrdt_env/bin/activate
+export HRDT_PROJECT_ROOT="$HOME/H_RDT"
+export PYTHONPATH="${HRDT_PROJECT_ROOT}:${PYTHONPATH}"
+cd ~/RoboTwin
 
-# Install PyTorch3D
-pip install "git+https://github.com/facebookresearch/pytorch3d.git@stable"
-
-# Run installation script (fixes SAPIEN and mplib code)
+# Run installation script (installs requirements, PyTorch3D, fixes SAPIEN and mplib code)
 bash script/_install.sh
 
 # Install system dependencies
@@ -48,7 +59,17 @@ sudo apt-get install -y ffmpeg
 
 ```bash
 cd ~/RoboTwin/assets
+
+# Option 1: Use activate.sh (if you have it)
 source ~/.config/hrdt/activate.sh
+
+# Option 2: Manual activation (if activate.sh doesn't exist)
+cd ~/H_RDT
+source hrdt_env/bin/activate
+export HRDT_PROJECT_ROOT="$HOME/H_RDT"
+export PYTHONPATH="${HRDT_PROJECT_ROOT}:${PYTHONPATH}"
+cd ~/RoboTwin/assets
+
 python _download.py
 
 # Extract assets (may take time)
@@ -116,6 +137,18 @@ cp ~/RoboTwin/policy/H-RDT/inference/robotwin2_example/H-RDT/deploy_policy.yml \
 
 If your checkpoint is in DeepSpeed ZeRO-3 format (has `pytorch_model/` directory), convert it:
 
+#### Check Checkpoint Format
+
+```bash
+# Check if checkpoint is in DeepSpeed format
+ls -lh ~/H_RDT/checkpoints/table8_finetune_pretrain0618/checkpoint-30/
+
+# If you see a `pytorch_model/` directory with multiple shard files, it's DeepSpeed format
+# The consolidated `pytorch_model.bin` file will be small (~3MB) if it's just metadata
+```
+
+#### Convert Checkpoint
+
 ```bash
 cd ~/H_RDT
 
@@ -126,11 +159,37 @@ bash convert_deepspeed_checkpoint.sh \
 
 # Or manually:
 cd ~/H_RDT/checkpoints/table8_finetune_pretrain0618/checkpoint-30
+
+# Option 1: Use activate.sh (if you have it)
 source ~/.config/hrdt/activate.sh
-python zero_to_fp32.py ~(pwd) ~(pwd)/pytorch_model_consolidated.bin
+
+# Option 2: Manual activation (if activate.sh doesn't exist)
+cd ~/H_RDT
+source hrdt_env/bin/activate
+export HRDT_PROJECT_ROOT="$HOME/H_RDT"
+export PYTHONPATH="${HRDT_PROJECT_ROOT}:${PYTHONPATH}"
+cd ~/H_RDT/checkpoints/table8_finetune_pretrain0618/checkpoint-30
+
+python zero_to_fp32.py $(pwd) $(pwd)/pytorch_model_consolidated.bin
 ```
 
-**Expected output:** ~7.7GB consolidated checkpoint file
+**Expected output:**
+```
+Processing zero checkpoint '.../pytorch_model'
+Detected checkpoint of type zero stage 3, world_size: 4
+Parsing checkpoint created by deepspeed==0.15.1
+Reconstructed Trainable fp32 state dict with 547 params 2062417166 elements
+Saving fp32 state dict to .../pytorch_model_consolidated.bin
+```
+
+**Note:** The consolidated file will be ~7.7GB. This may take several minutes.
+
+#### Verify Conversion
+
+```bash
+ls -lh ~/H_RDT/checkpoints/table8_finetune_pretrain0618/checkpoint-30/pytorch_model_consolidated.bin
+# Should be ~7.7GB
+```
 
 **Note:** If checkpoint is already consolidated (single `.bin` file), skip this step.
 
@@ -194,7 +253,17 @@ gpu_id="0"                      # GPU to use
 
 ```bash
 cd ~/RoboTwin/policy/H-RDT/inference/robotwin2_example/H-RDT
+
+# Option 1: Use activate.sh (if you have it)
 source ~/.config/hrdt/activate.sh
+
+# Option 2: Manual activation (if activate.sh doesn't exist)
+cd ~/H_RDT
+source hrdt_env/bin/activate
+export HRDT_PROJECT_ROOT="$HOME/H_RDT"
+export PYTHONPATH="${HRDT_PROJECT_ROOT}:${PYTHONPATH}"
+cd ~/RoboTwin/policy/H-RDT/inference/robotwin2_example/H-RDT
+
 bash eval.sh
 ```
 
@@ -207,7 +276,16 @@ Create `evaluate_all_tasks.sh`:
 ```bash
 #!/bin/bash
 cd ~/RoboTwin/policy/H-RDT/inference/robotwin2_example/H-RDT
+
+# Option 1: Use activate.sh (if you have it)
 source ~/.config/hrdt/activate.sh
+
+# Option 2: Manual activation (if activate.sh doesn't exist)
+cd ~/H_RDT
+source hrdt_env/bin/activate
+export HRDT_PROJECT_ROOT="$HOME/H_RDT"
+export PYTHONPATH="${HRDT_PROJECT_ROOT}:${PYTHONPATH}"
+cd ~/RoboTwin/policy/H-RDT/inference/robotwin2_example/H-RDT
 
 tasks=(
     "grab_roller" "handover_mic" "lift_pot" "move_can_pot"
@@ -234,6 +312,15 @@ Based on H-RDT paper Table 8:
 
 **Current Results (checkpoint-30, Hard mode):**
 - `grab_roller`: ~12.5% (2/16 trials)
+
+**Note:** 
+- If you trained in **multi-task mode**: Evaluate on all tasks with the same checkpoint
+- If you trained in **single-task mode**: Each task has its own checkpoint, evaluate each task with its corresponding checkpoint:
+  ```bash
+  # For single-task checkpoint:
+  ckpt_setting="checkpoints/table8_grab_roller_checkpoint30"
+  task_name="grab_roller"
+  ```
 
 ## Troubleshooting
 
@@ -273,6 +360,41 @@ Based on H-RDT paper Table 8:
 - **Check:** Ensure language embeddings are loaded correctly
 - **Check:** Verify checkpoint is from correct training step
 
+## Quick Reference
+
+### One-Time Setup Checklist
+
+```bash
+# Check dependencies installed
+python -c "import sapien; print('✅ SAPIEN')"
+
+# Check assets downloaded
+test -f ~/RoboTwin/assets/objects/objaverse/list.json && echo "✅ Assets" || echo "❌ Missing assets"
+
+# Check code structure copied
+test -f ~/RoboTwin/policy/H-RDT/inference/robotwin2_example/H-RDT/deploy_policy.py && echo "✅ Code" || echo "❌ Missing code"
+
+# Check language embeddings
+ls ~/RoboTwin/policy/H-RDT/inference/robotwin2_example/H-RDT/utils/lang_embeddings/*.pt | wc -l
+# Should be 49
+```
+
+### Per-Checkpoint Checklist
+
+```bash
+# Check consolidated checkpoint
+ls -lh ~/H_RDT/checkpoints/YOUR_CHECKPOINT/pytorch_model_consolidated.bin
+# Should be ~7.7GB
+
+# Check RobotWin checkpoint
+ls -lh ~/RoboTwin/policy/H-RDT/checkpoints/YOUR_CHECKPOINT_NAME/pytorch_model.bin
+# Should be ~7.7GB
+
+# Check eval.sh configured
+grep "ckpt_setting=" ~/RoboTwin/policy/H-RDT/inference/robotwin2_example/H-RDT/eval.sh
+# Should point to your checkpoint
+```
+
 ## Files Structure
 
 ```
@@ -283,12 +405,9 @@ Based on H-RDT paper Table 8:
 │           ├── pytorch_model/              # DeepSpeed shards
 │           ├── pytorch_model_consolidated.bin  # Converted checkpoint (7.7GB)
 │           └── config.json
-├── scripts/
-│   ├── convert_deepspeed_checkpoint.sh
-│   └── prepare_robotwin_evaluation.sh
-└── docs/
-    ├── ROBOTWIN_EVALUATION_SETUP.md      # Detailed setup guide
-    └── EVALUATION_QUICK_REFERENCE.md     # Quick commands
+├── convert_deepspeed_checkpoint.sh
+├── prepare_robotwin_evaluation.sh
+└── ...
 
 ~/RoboTwin/
 └── policy/
@@ -315,8 +434,6 @@ Based on H-RDT paper Table 8:
 
 - **RobotWin Documentation:** https://robotwin-platform.github.io/doc/
 - **H-RDT Paper:** Check paper for Table 8 details
-- **Detailed Setup:** See `ROBOTWIN_EVALUATION_SETUP.md`
-- **Quick Reference:** See `EVALUATION_QUICK_REFERENCE.md`
 
 ## Support
 
