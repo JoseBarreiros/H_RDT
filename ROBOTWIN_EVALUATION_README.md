@@ -47,13 +47,46 @@ export HRDT_PROJECT_ROOT="$HOME/H_RDT"
 export PYTHONPATH="${HRDT_PROJECT_ROOT}:${PYTHONPATH}"
 cd ~/RoboTwin
 
-# Run installation script (installs requirements, PyTorch3D, fixes SAPIEN and mplib code)
-bash script/_install.sh
+# Verify virtual environment is active
+which python
+# Should show: /home/username/H_RDT/hrdt_env/bin/python
+
+# Verify torch is installed (install if missing)
+python -c "import torch; print('✅ torch version:', torch.__version__)" || pip install torch==2.4.1 torchvision
+
+# Install RobotWin requirements
+pip install transforms3d==0.4.2 sapien==3.0.0b1 scipy==1.10.1 mplib==0.2.1 \
+    gymnasium==0.29.1 trimesh==4.4.3 open3d==0.18.0 imageio==2.34.2 pydantic \
+    zarr openai huggingface_hub==0.25.0 h5py pyglet wandb moviepy termcolor av matplotlib
+
+# Note: scipy version conflict warnings are safe to ignore
+
+# Fix SAPIEN code
+echo "Adjusting code in sapien/wrapper/urdf_loader.py ..."
+SAPIEN_LOCATION=$(pip show sapien | grep 'Location' | awk '{print $2}')/sapien
+URDF_LOADER=$SAPIEN_LOCATION/wrapper/urdf_loader.py
+sed -i -E 's/("r")(\))( as)/\1, encoding="utf-8") as/g' $URDF_LOADER
+
+# Fix mplib code
+echo "Adjusting code in mplib/planner.py ..."
+MPLIB_LOCATION=$(pip show mplib | grep 'Location' | awk '{print $2}')/mplib
+PLANNER=$MPLIB_LOCATION/planner.py
+sed -i -E 's/(if np.linalg.norm\(delta_twist\) < 1e-4 )(or collide )(or not within_joint_limit:)/\1\3/g' $PLANNER
+
+# Install Curobo (optional, but recommended)
+echo "Installing Curobo ..."
+cd envs
+git clone https://github.com/NVlabs/curobo.git || echo "Curobo already cloned"
+cd curobo
+pip install -e . --no-build-isolation
+cd ../..
 
 # Install system dependencies
 sudo apt-get update
 sudo apt-get install -y ffmpeg
 ```
+
+**Note:** If you see permission errors, ensure you're using the virtual environment (not system Python). The `which python` command should show a path containing `hrdt_env`.
 
 ### Step 2: Download RobotWin Assets
 
