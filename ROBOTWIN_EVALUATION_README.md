@@ -133,19 +133,29 @@ cp -r ~/H_RDT/inference/robotwin2_example/H-RDT/* \
       ~/RoboTwin/policy/H-RDT/inference/robotwin2_example/H-RDT/
 
 # Copy language embeddings (one-time, shared across checkpoints)
+mkdir -p ~/RoboTwin/policy/H-RDT/inference/robotwin2_example/H-RDT/utils/lang_embeddings
 cp -r ~/H_RDT/datasets/robotwin2/lang_embeddings/*.pt \
       ~/RoboTwin/policy/H-RDT/inference/robotwin2_example/H-RDT/utils/lang_embeddings/
 
 # Copy configs and stats (one-time)
+# Note: deploy_policy.py expects utils/ in the same directory as deploy_policy.py
+mkdir -p ~/RoboTwin/policy/H-RDT/utils
 cp ~/H_RDT/configs/hrdt_finetune.yaml \
-   ~/RoboTwin/policy/H-RDT/inference/robotwin2_example/H-RDT/utils/hrdt.yaml
+   ~/RoboTwin/policy/H-RDT/utils/hrdt.yaml
 
 cp ~/H_RDT/datasets/robotwin2/stats.json \
-   ~/RoboTwin/policy/H-RDT/inference/robotwin2_example/H-RDT/utils/stats.json
+   ~/RoboTwin/policy/H-RDT/utils/stats.json
+
+# Also copy language embeddings to utils (needed by deploy_policy.py)
+mkdir -p ~/RoboTwin/policy/H-RDT/utils/lang_embeddings
+cp -r ~/H_RDT/datasets/robotwin2/lang_embeddings/*.pt \
+      ~/RoboTwin/policy/H-RDT/utils/lang_embeddings/
 
 # Copy vision encoder models (one-time)
-cp -r ~/H_RDT/bak \
-      ~/RoboTwin/policy/H-RDT/
+# Note: deploy_policy.py expects bak/ in the same directory as deploy_policy.py
+mkdir -p ~/RoboTwin/policy/H-RDT/bak
+cp -r ~/H_RDT/bak/* \
+      ~/RoboTwin/policy/H-RDT/bak/
 
 # Setup policy module structure (one-time)
 mkdir -p ~/RoboTwin/policy/H-RDT
