@@ -196,15 +196,17 @@ ls -lh ~/H_RDT/checkpoints/table8_finetune_pretrain0618/checkpoint-30/
 #### Convert Checkpoint
 
 ```bash
+CHECKPOINT_NAME="table8_handover_mic/checkpoint-10000"  # Change this for each checkpoint
+
 cd ~/H_RDT
 
 # Using the helper script (recommended)
 bash convert_deepspeed_checkpoint.sh \
-    ~/H_RDT/checkpoints/table8_finetune_pretrain0618/checkpoint-30 \
-    ~/H_RDT/checkpoints/table8_finetune_pretrain0618/checkpoint-30/pytorch_model_consolidated.bin
+    ~/H_RDT/checkpoints/$CHECKPOINT_NAME \
+    ~/H_RDT/checkpoints/$CHECKPOINT_NAME/pytorch_model_consolidated.bin
 
 # Or manually:
-cd ~/H_RDT/checkpoints/table8_finetune_pretrain0618/checkpoint-30
+cd ~/H_RDT/checkpoints/$CHECKPOINT_NAME
 
 # Option 1: Use activate.sh (if you have it)
 source ~/.config/hrdt/activate.sh
@@ -215,7 +217,7 @@ source hrdt_env/bin/activate
 export HRDT_PROJECT_ROOT="$HOME/H_RDT"
 export PYTHONPATH="${HRDT_PROJECT_ROOT}:${PYTHONPATH}"
 
-cd ~/H_RDT/checkpoints/table8_finetune_pretrain0618/checkpoint-30
+cd ~/H_RDT/checkpoints/$CHECKPOINT_NAME
 
 python zero_to_fp32.py $(pwd) $(pwd)/pytorch_model_consolidated.bin
 ```
@@ -234,7 +236,7 @@ Saving fp32 state dict to .../pytorch_model_consolidated.bin
 #### Verify Conversion
 
 ```bash
-ls -lh ~/H_RDT/checkpoints/table8_finetune_pretrain0618/checkpoint-30/pytorch_model_consolidated.bin
+ls -lh ~/H_RDT/checkpoints/$CHECKPOINT_NAME/pytorch_model_consolidated.bin
 # Should be ~7.7GB
 ```
 
@@ -244,15 +246,15 @@ ls -lh ~/H_RDT/checkpoints/table8_finetune_pretrain0618/checkpoint-30/pytorch_mo
 
 ```bash
 # Create checkpoint directory (use descriptive name)
-CHECKPOINT_NAME="table8_checkpoint30"  # Change this for each checkpoint
+
 mkdir -p ~/RoboTwin/policy/H-RDT/checkpoints/$CHECKPOINT_NAME
 
 # Copy consolidated checkpoint
-cp ~/H_RDT/checkpoints/table8_finetune_pretrain0618/checkpoint-30/pytorch_model_consolidated.bin \
+cp ~/H_RDT/checkpoints/$CHECKPOINT_NAME/pytorch_model_consolidated.bin \
    ~/RoboTwin/policy/H-RDT/checkpoints/$CHECKPOINT_NAME/pytorch_model.bin
 
 # Copy config
-cp ~/H_RDT/checkpoints/table8_finetune_pretrain0618/checkpoint-30/config.json \
+cp ~/H_RDT/checkpoints/$CHECKPOINT_NAME/config.json \
    ~/RoboTwin/policy/H-RDT/checkpoints/$CHECKPOINT_NAME/config.json
 
 # Remove pretrained_backbone_path from config (not needed for fine-tuned checkpoint)
@@ -296,7 +298,7 @@ nano eval.sh  # or your preferred editor
 policy_name="H-RDT"
 task_name="grab_roller"         # Change this for each task
 task_config="demo_randomized"   # "demo_randomized" (Hard) or "demo_clean" (Easy)
-ckpt_setting="checkpoints/table8_checkpoint30"  # Change this for each checkpoint
+ckpt_setting="checkpoints/table8_handover_mic/checkpoint-10000"  # Change this for each checkpoint
 seed="42"
 gpu_id="0"
 

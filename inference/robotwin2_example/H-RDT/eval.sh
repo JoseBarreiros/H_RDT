@@ -2,8 +2,8 @@
 
 policy_name="H-RDT"
 task_name="handover_mic"
-task_config="demo_randomized"
-ckpt_setting=""
+task_config="demo_clean"  # demo_randomized or demo_clean
+ckpt_setting=""  # e.g. checkpoints/table8_handover_mic/checkpoint-10000
 seed="42"
 gpu_id="0"
 # [TODO] add parameters here
@@ -11,7 +11,10 @@ gpu_id="0"
 export CUDA_VISIBLE_DEVICES=${gpu_id}
 echo -e "\033[33mgpu id (to use): ${gpu_id}\033[0m"
 
-cd ../.. # move to root
+# Calculate RoboTwin root directory (absolute path)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROBOTWIN_ROOT="$(cd "$SCRIPT_DIR/../../../../.." && pwd)"
+cd "$ROBOTWIN_ROOT"
 
 PYTHONWARNINGS=ignore::UserWarning \
 python script/eval_policy.py --config policy/$policy_name/deploy_policy.yml \
