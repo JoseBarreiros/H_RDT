@@ -349,6 +349,26 @@ bash eval.sh
 
 **Note:** Change `ckpt_setting` in `eval.sh` to evaluate different checkpoints.
 
+### Finding Evaluation Results
+
+After running evaluation, the output videos and results can be found in:
+
+```
+~/RoboTwin/eval_result/{task_name}/{policy_name}/{task_config}/checkpoints/{checkpoint_path}/{timestamp}/
+```
+
+For example, for `handover_mic` task with `demo_clean` config and checkpoint `table8_handover_mic/checkpoint-10000`:
+
+```bash
+~/RoboTwin/eval_result/handover_mic/H-RDT/demo_clean/checkpoints/table8_handover_mic/checkpoint-10000/2025-11-01 22:35:05/
+```
+
+This directory will contain:
+- `episode0.mp4`, `episode1.mp4`, `episode2.mp4`, ... - Video recordings of each evaluation trial
+- Other evaluation artifacts (logs, metrics, etc.)
+
+The timestamp directory is created automatically for each evaluation run, allowing you to track multiple evaluation runs over time.
+
 ### Evaluate All Table 8 Tasks
 
 Create `evaluate_all_tasks.sh`:
