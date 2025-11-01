@@ -104,10 +104,66 @@ After data preprocessing is complete:
    ```
 
 **2. Pretrain Resume:**
-Edit `pretrain.sh`, add this line:
+
+To resume training from a checkpoint, use `--resume_from_checkpoint`. **Important:** Use the same `--output_dir` as your original training, or copy the checkpoint to the new directory first.
+
+**Option 1: Resume in Same Output Directory (Recommended)**
 ```bash
---resume_from_checkpoint="checkpoint-450000" \
+accelerate launch --main_process_port 29500 main.py \
+    --resume_from_checkpoint checkpoint-60000 \
+    --pretrained_vision_encoder_name_or_path="dino-siglip" \
+    --deepspeed configs/zero1.json \
+    --config_path configs/hrdt_pretrain.yaml \
+    --output_dir ./checkpoints/scaling_p100 \
+    --train_batch_size 48 \
+    --sample_batch_size 32 \
+    --max_train_steps 100000 \
+    --learning_rate 1e-4 \
+    --data_percentage 1.0 \
+    --seed 42 \
+    --checkpointing_period 10000 \
+    --checkpoints_total_limit 40 \
+    --sample_period 1000 \
+    --lr_scheduler=constant_with_warmup \
+    --mixed_precision bf16 \
+    --dataloader_num_workers 32 \
+    --dataset_type pretrain \
+    --report_to wandb \
+    --upsample_rate 3 \
+    --image_aug \
+    --gradient_checkpointing \
+    --precomp_lang_embed \
+    --training_mode lang \
+    --mode pretrain
 ```
+
+**Key Points:**
+- ✅ Use the same `--output_dir` as original training
+- ✅ Use relative checkpoint name: `checkpoint-60000` (not full path)
+- ✅ Keep the same `--lr_scheduler` argument (scheduler state is restored from checkpoint)
+- ✅ Keep all other training hyperparameters the same
+
+**Option 2: Resume in Different Output Directory**
+If you want to save checkpoints to a different directory, copy the checkpoint first:
+```bash
+# Copy checkpoint to new directory
+mkdir -p ./checkpoints/new_output_dir
+cp -r ./checkpoints/original_dir/checkpoint-60000 ./checkpoints/new_output_dir/
+
+# Then resume with new output_dir
+accelerate launch ... \
+    --resume_from_checkpoint checkpoint-60000 \
+    --output_dir ./checkpoints/new_output_dir \
+    ...
+```
+
+**Using "latest" Checkpoint:**
+```bash
+--resume_from_checkpoint latest
+```
+This automatically finds and resumes from the most recent checkpoint in `output_dir`.
+
+📖 **For detailed resume training guide, see [RESUME_TRAINING_GUIDE.md](RESUME_TRAINING_GUIDE.md)**
 
 **3. Scaling Law Experiments:**
 Train with different percentages of EgoDex data to study data efficiency and performance scaling:
@@ -281,16 +337,59 @@ bash eval.sh
    ```
 
 #### Finetune Resume:
-Edit your current finetune script, make these changes:
-```bash
-# Change this line:
---mode="finetune" \
-# To:
---mode="pretrain" \
 
-# And add:
---resume_from_checkpoint="checkpoint-5000" \
+To resume fine-tuning from a checkpoint, you need to use `--mode="pretrain"` (not `"finetune"`) and specify the checkpoint:
+
+```bash
+accelerate launch main.py \
+    --resume_from_checkpoint checkpoint-5000 \
+    --dataset_name="robotwin_agilex" \
+    --pretrained_vision_encoder_name_or_path="dino-siglip" \
+    --config_path configs/hrdt_finetune.yaml \
+    --output_dir ./checkpoints/table8_finetune \
+    --train_batch_size 32 \
+    --max_train_steps 10000 \
+    --learning_rate 1e-4 \
+    --dataset_type finetune \
+    --mode pretrain \
+    --pretrained_backbone_path "./checkpoints/pretrain-0618/checkpoint-500000/pytorch_model.bin" \
+    --report_to wandb
 ```
+
+**Key Points:**
+- ✅ Use `--mode="pretrain"` (not `"finetune"`) when resuming
+- ✅ Use the same `--output_dir` as original fine-tuning
+- ✅ Keep the same `--lr_scheduler` argument
+- ✅ Keep all other hyperparameters the same as original fine-tuning
+
+📖 **For detailed resume training guide, see [RESUME_TRAINING_GUIDE.md](RESUME_TRAINING_GUIDE.md)**
+
+#### Resume Training Troubleshooting
+
+**Problem:** `ValueError: Tried to find .../checkpoint-XXXXX but folder does not exist`
+
+**Solution:** The checkpoint must exist in the `--output_dir` directory. Either:
+1. Use the same `--output_dir` as original training, or
+2. Copy the checkpoint to the new output directory first:
+   ```bash
+   mkdir -p ./checkpoints/new_output_dir
+   cp -r ./checkpoints/original_dir/checkpoint-60000 ./checkpoints/new_output_dir/
+   ```
+
+**Problem:** Scheduler state mismatch or learning rate issues
+
+**Solution:** Always use the same `--lr_scheduler` argument as original training. The scheduler state is saved in the checkpoint and must match.
+
+**Problem:** Training starts from step 0 instead of resuming
+
+**Solution:** 
+- Ensure `--resume_from_checkpoint` is specified correctly
+- Check that the checkpoint directory exists in `--output_dir`
+- Use relative checkpoint name (e.g., `checkpoint-60000`) not full path
+
+**Problem:** WandB run doesn't continue from checkpoint step
+
+**Solution:** WandB will create a new run by default. To continue the same run, you may need to specify `--wandb_run_id` or manually set it in your environment.
 
 ## 🎯 Training Modes
 
