@@ -369,6 +369,105 @@ This directory will contain:
 
 The timestamp directory is created automatically for each evaluation run, allowing you to track multiple evaluation runs over time.
 
+### Copying Videos to Local Machine
+
+To copy evaluation videos from your GCP instance to your local machine:
+
+**Using RSYNC (Recommended):**
+
+```bash
+# Set your instance IP and SSH key (if needed)
+INSTANCE_IP="34.56.106.17"
+SSH_KEY="~/.ssh/gcp_key"  # Omit -e flag if using default SSH key
+CHECKPOINT="table8_handover_mic/checkpoint-10000"
+EP_TIMESTAMP='2025-11-01 22:35:05'
+
+# Option 1: Copy entire checkpoint directory (RECOMMENDED - avoids escaping issues)
+rsync -avhP -e "ssh -i $SSH_KEY" \
+  jose-barreiros@$INSTANCE_IP:~/RoboTwin/eval_result/handover_mic/H-RDT/demo_clean/checkpoints/$CHECKPOINT/ \
+  ./checkpoint_videos/$CHECKPOINT/
+# This copies all timestamp subdirectories to ./checkpoint_videos/$CHECKPOINT/
+# Then navigate locally: cd "./checkpoint_videos/$CHECKPOINT/$EP_TIMESTAMP"
+
+# Option 2: Copy specific timestamp directory using absolute path
+# Note: Create parent directories first (since $CHECKPOINT contains a slash)
+# Or use --mkpath flag if rsync version >= 3.2.4
+mkdir -p "./videos/$CHECKPOINT/$EP_TIMESTAMP"
+
+rsync -avhP -e "ssh -i $SSH_KEY" \
+  "jose-barreiros@$INSTANCE_IP:/home/jose-barreiros/RoboTwin/eval_result/handover_mic/H-RDT/demo_clean/checkpoints/$CHECKPOINT/$EP_TIMESTAMP/" \
+  "./videos/$CHECKPOINT/$EP_TIMESTAMP/"
+
+# Alternative: Use --mkpath to auto-create parent directories (rsync 3.2.4+)
+# rsync -avhP --mkpath -e "ssh -i $SSH_KEY" \
+#   "jose-barreiros@$INSTANCE_IP:/home/jose-barreiros/RoboTwin/eval_result/handover_mic/H-RDT/demo_clean/checkpoints/$CHECKPOINT/$EP_TIMESTAMP/" \
+#   "./videos/$CHECKPOINT/$EP_TIMESTAMP/"
+
+# Copy only MP4 files (faster)
+mkdir -p "./videos/$CHECKPOINT/$EP_TIMESTAMP"
+rsync -avhP -e "ssh -i $SSH_KEY" --include="*.mp4" --exclude="*" \
+  "jose-barreiros@$INSTANCE_IP:/home/jose-barreiros/RoboTwin/eval_result/handover_mic/H-RDT/demo_clean/checkpoints/$CHECKPOINT/$EP_TIMESTAMP/" \
+  "./videos/$CHECKPOINT/$EP_TIMESTAMP/"
+
+# Copy all evaluation results for a task
+rsync -avhP -e "ssh -i $SSH_KEY" \
+  jose-barreiros@$INSTANCE_IP:~/RoboTwin/eval_result/handover_mic/ ./eval_results/
+```
+
+**Note:** If you don't need to specify an SSH key (using default `~/.ssh/id_rsa`), omit the `-e "ssh -i $SSH_KEY"` part.
+
+**RSYNC flags:**
+- `-a`: Archive mode (preserves permissions, timestamps)
+- `-v`: Verbose output
+- `-h`: Human-readable file sizes
+- `-P`: Progress indicator + partial (resumes interrupted transfers)
+
+**Finding your instance IP:**
+- GCP Console: Compute Engine > VM instances > External IP
+- From instance: `curl -s ifconfig.me`
+
+**Note:** Use quotes or escape spaces in directory names (like timestamps). RSYNC is recommended for large files as it can resume interrupted transfers.
+
+**Troubleshooting rsync/scp errors:**
+
+**Problem:** `rsync: change_dir failed: No such file or directory`
+- **Solution 1:** First verify the path exists on remote:
+  ```bash
+  ssh -i $SSH_KEY jose-barreiros@$INSTANCE_IP \
+    'ls -d ~/RoboTwin/eval_result/handover_mic/H-RDT/demo_clean/checkpoints/table8_handover_mic/checkpoint-10000/*'
+  ```
+- **Solution 2:** Use absolute path instead of `~` expansion:
+  ```bash
+  # Use /home/jose-barreiros instead of ~
+  rsync -avhP -e "ssh -i $SSH_KEY" \
+    jose-barreiros@$INSTANCE_IP:/home/jose-barreiros/RoboTwin/eval_result/.../checkpoint-10000/'2025-11-01 22:35:05'/ \
+    ./videos/
+  ```
+- **Solution 3:** Copy the parent directory (no timestamp escaping needed):
+  ```bash
+  rsync -avhP -e "ssh -i $SSH_KEY" \
+    jose-barreiros@$INSTANCE_IP:~/RoboTwin/eval_result/handover_mic/H-RDT/demo_clean/checkpoints/table8_handover_mic/checkpoint-10000/ \
+    ./checkpoint_videos/
+  ```
+
+**Problem:** `rsync: mkdir failed: No such file or directory`
+- **Solution:** Create parent directories first (since `$CHECKPOINT` contains a slash):
+  ```bash
+  mkdir -p "./videos/$CHECKPOINT/$EP_TIMESTAMP"
+  ```
+  Or use `--mkpath` flag if rsync version >= 3.2.4:
+  ```bash
+  rsync -avhP --mkpath -e "ssh -i $SSH_KEY" ...
+  ```
+  Check rsync version: `rsync --version`
+
+**Problem:** Authentication fails or "Permission denied"
+- **Solution:** Specify SSH key explicitly:
+  ```bash
+  rsync -avhP -e "ssh -i ~/.ssh/your_gcp_key" ...
+  scp -i ~/.ssh/your_gcp_key ...
+  ```
+
 ### Evaluate All Table 8 Tasks
 
 Create `evaluate_all_tasks.sh`:
