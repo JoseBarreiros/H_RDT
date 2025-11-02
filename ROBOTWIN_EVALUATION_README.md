@@ -186,8 +186,10 @@ If your checkpoint is in DeepSpeed ZeRO-3 format (has `pytorch_model/` directory
 #### Check Checkpoint Format
 
 ```bash
+CHECKPOINT_NAME="table8_handover_mic/checkpoint-10000"  # Change this for each checkpoint
+
 # Check if checkpoint is in DeepSpeed format
-ls -lh ~/H_RDT/checkpoints/table8_finetune_pretrain0618/checkpoint-30/
+ls -lh ~/H_RDT/checkpoints/$CHECKPOINT_NAME/
 
 # If you see a `pytorch_model/` directory with multiple shard files, it's DeepSpeed format
 # The consolidated `pytorch_model.bin` file will be small (~3MB) if it's just metadata
@@ -196,8 +198,6 @@ ls -lh ~/H_RDT/checkpoints/table8_finetune_pretrain0618/checkpoint-30/
 #### Convert Checkpoint
 
 ```bash
-CHECKPOINT_NAME="table8_handover_mic/checkpoint-10000"  # Change this for each checkpoint
-
 cd ~/H_RDT
 
 # Using the helper script (recommended)
