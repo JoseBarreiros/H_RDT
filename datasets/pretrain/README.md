@@ -9,6 +9,42 @@ The pretraining data processing consists of three steps:
 2. **Calculate Statistics** - Compute min/max values for action normalization  
 3. **Encode Language** - Generate T5 embeddings for language instructions
 
+## EgoDex Dataset Information
+
+### Dataset Statistics
+
+**Total Episodes**: 318,082
+
+| Split | Episodes | Percentage |
+|-------|----------|------------|
+| Training | 314,839 | 99.0% |
+| Test | 3,243 | 1.0% |
+| **Total** | **318,082** | **100%** |
+
+**Additional Details:**
+- **Tasks**: 111 different tasks
+- **Format**: Each episode = 1 HDF5 file (with corresponding MP4 video and `.pt` language embedding file)
+- **Action Dimensions**: 48-dimensional hand actions
+- **Preprocessing Status**: All episodes have been processed with:
+  - 48D actions precomputed
+  - Language embeddings generated (T5)
+  - Statistics calculated
+
+### Scaling Law Experiments
+
+When using `--data_percentage` for scaling law experiments:
+
+- The `data_percentage` parameter only affects the **training set**
+- The **test set** (3,243 episodes) is always used at 100% for validation
+- **Sampling**: Done at the episode/file level (not timestep level)
+  - Each selected episode can be sampled multiple times at different timesteps during training
+  - This provides diversity through both episode selection and timestep sampling
+
+**Examples:**
+- `data_percentage=0.1` (10%): ~31,484 training episodes + 3,243 test episodes
+- `data_percentage=0.5` (50%): ~157,420 training episodes + 3,243 test episodes
+- `data_percentage=1.0` (100%): 314,839 training episodes + 3,243 test episodes
+
 ## Quick Start
 
 ### 1. Setup Environment
