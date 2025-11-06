@@ -407,6 +407,76 @@ rsync -avhP -e "ssh -i $SSH_KEY" \
 
 **Note:** Use quotes or escape spaces in directory names (like timestamps). RSYNC is recommended for large files as it can resume interrupted transfers.
 
+### Copying Checkpoints Between Instances
+
+To copy training checkpoints from one GCP instance to another:
+
+**Prerequisites:**
+1. Generate SSH key on destination instance (if not already done):
+   ```bash
+   ssh-keygen -t rsa -b 4096 -f ~/.ssh/gcp_key -N "" -C "jose-barreiros"
+   chmod 600 ~/.ssh/gcp_key
+   ```
+2. Add the public key to the source instance:
+   ```bash
+   # Display public key to add to source instance
+   cat ~/.ssh/gcp_key.pub
+   ```
+   Then add it to the source instance via GCP Console (Compute Engine > VM instances > Edit > SSH Keys) or manually to `~/.ssh/authorized_keys`.
+
+**Copy Checkpoint Folder:**
+
+```bash
+# Set variables
+INSTANCE_IP="34.56.106.17"  # Source instance IP
+SSH_KEY="~/.ssh/gcp_key"     # SSH key path
+CHECKPOINT="scaling_p100/checkpoint-80000"  # Checkpoint path (relative to checkpoints/)
+
+# Create destination directory first
+mkdir -p "./checkpoints/$CHECKPOINT"
+
+# Copy checkpoint folder
+rsync -avhP -e "ssh -i $SSH_KEY" \
+  "jose-barreiros@$INSTANCE_IP:/home/jose-barreiros/H_RDT/checkpoints/$CHECKPOINT/" \
+  "./checkpoints/$CHECKPOINT/"
+```
+
+**One-liner (replace values):**
+```bash
+rsync -avhP -e "ssh -i ~/.ssh/gcp_key" \
+  "jose-barreiros@SOURCE_IP:/home/jose-barreiros/H_RDT/checkpoints/table8_handover_mic/checkpoint-10000/" \
+  "./checkpoints/table8_handover_mic/checkpoint-10000/"
+```
+
+**Copy Only Consolidated Checkpoint (smaller):**
+
+If you only need the consolidated checkpoint file (not the full DeepSpeed state):
+
+```bash
+CHECKPOINT="table8_handover_mic/checkpoint-10000"
+
+# Create destination directory
+mkdir -p "./checkpoints/$CHECKPOINT"
+
+# Copy consolidated checkpoint
+rsync -avhP -e "ssh -i $SSH_KEY" \
+  "jose-barreiros@$INSTANCE_IP:/home/jose-barreiros/H_RDT/checkpoints/$CHECKPOINT/pytorch_model_consolidated.bin" \
+  "./checkpoints/$CHECKPOINT/"
+
+# Copy config.json
+rsync -avhP -e "ssh -i $SSH_KEY" \
+  "jose-barreiros@$INSTANCE_IP:/home/jose-barreiros/H_RDT/checkpoints/$CHECKPOINT/config.json" \
+  "./checkpoints/$CHECKPOINT/"
+```
+
+**Test SSH Connection First:**
+```bash
+# Test that SSH works
+ssh -i ~/.ssh/gcp_key jose-barreiros@$INSTANCE_IP "ls ~/H_RDT/checkpoints/"
+```
+
+**Note:** Checkpoints can be large (30-40GB for DeepSpeed ZeRO-3, 2-5GB for consolidated). Ensure you have enough disk space on the destination instance.
+
 **Troubleshooting rsync/scp errors:**
 
 **Problem:** `rsync: change_dir failed: No such file or directory`

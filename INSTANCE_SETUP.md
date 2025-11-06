@@ -360,6 +360,38 @@ tail -f ~/H_RDT/checkpoints/scaling_p10/train.log
 wandb dashboard
 ```
 
+## Copying Checkpoints Between Instances
+
+If you need to copy checkpoints from one instance to another for evaluation or further training:
+
+**1. Generate SSH Key (if not already done):**
+```bash
+# On destination instance
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/gcp_key -N "" -C "jose-barreiros"
+chmod 600 ~/.ssh/gcp_key
+cat ~/.ssh/gcp_key.pub  # Add this to source instance
+```
+
+**2. Copy Checkpoint:**
+```bash
+# Set variables
+SOURCE_IP="34.56.106.17"  # Source instance IP
+SSH_KEY="~/.ssh/gcp_key"
+CHECKPOINT="scaling_p100/checkpoint-80000"
+
+# Create destination directory
+mkdir -p "./checkpoints/$CHECKPOINT"
+
+# Copy checkpoint
+rsync -avhP -e "ssh -i $SSH_KEY" \
+  "jose-barreiros@$SOURCE_IP:/home/jose-barreiros/H_RDT/checkpoints/$CHECKPOINT/" \
+  "./checkpoints/$CHECKPOINT/"
+```
+
+**Note:** Checkpoints are large (30-40GB for DeepSpeed ZeRO-3). Ensure sufficient disk space and network bandwidth.
+
+📖 **For detailed checkpoint copying guide, see [ROBOTWIN_EVALUATION_README.md](ROBOTWIN_EVALUATION_README.md#copying-checkpoints-between-instances)**
+
 ## Next Steps
 
 1. ✅ Follow Step 1 to preprocess data once

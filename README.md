@@ -340,6 +340,21 @@ source ~/.config/hrdt/activate.sh
 
 📖 **For detailed evaluation guide, see [ROBOTWIN_EVALUATION_README.md](ROBOTWIN_EVALUATION_README.md)**
 
+**Copying Checkpoints Between Instances:**
+```bash
+# Quick copy from another instance
+INSTANCE_IP="SOURCE_IP"
+SSH_KEY="~/.ssh/gcp_key"
+CHECKPOINT="table8_handover_mic/checkpoint-10000"
+
+mkdir -p "./checkpoints/$CHECKPOINT"
+rsync -avhP -e "ssh -i $SSH_KEY" \
+  "jose-barreiros@$INSTANCE_IP:/home/jose-barreiros/H_RDT/checkpoints/$CHECKPOINT/" \
+  "./checkpoints/$CHECKPOINT/"
+```
+
+📖 **For detailed checkpoint copying guide, see [ROBOTWIN_EVALUATION_README.md](ROBOTWIN_EVALUATION_README.md#copying-checkpoints-between-instances)**
+
 **Key Steps:**
 1. **Convert checkpoint:** DeepSpeed ZeRO-3 checkpoints need to be converted to consolidated format
 2. **Setup RobotWin:** Install dependencies and download assets (~15GB)
