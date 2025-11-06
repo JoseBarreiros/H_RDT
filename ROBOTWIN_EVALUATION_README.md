@@ -281,54 +281,9 @@ bash prepare_robotwin_evaluation.sh \
 
 ## Evaluation
 
-### Configure Evaluation Script
-
-Edit `~/RoboTwin/policy/H-RDT/inference/robotwin2_example/H-RDT/eval.sh`:
-
-```bash
-cd ~/RoboTwin/policy/H-RDT/inference/robotwin2_example/H-RDT
-nano eval.sh  # or your preferred editor
-```
-
-**Important:** Ensure `eval.sh` contains the correct path calculation code. The script should look like this:
-
-```bash
-#!/bin/bash
-
-policy_name="H-RDT"
-task_name="grab_roller"         # Change this for each task
-task_config="demo_randomized"   # "demo_randomized" (Hard) or "demo_clean" (Easy)
-ckpt_setting="checkpoints/table8_handover_mic/checkpoint-10000"  # Change this for each checkpoint
-seed="42"
-gpu_id="0"
-
-export CUDA_VISIBLE_DEVICES=${gpu_id}
-echo -e "\033[33mgpu id (to use): ${gpu_id}\033[0m"
-
-# Calculate RoboTwin root directory (absolute path)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROBOTWIN_ROOT="$(cd "$SCRIPT_DIR/../../../../.." && pwd)"
-cd "$ROBOTWIN_ROOT"
-
-PYTHONWARNINGS=ignore::UserWarning \
-python script/eval_policy.py --config policy/$policy_name/deploy_policy.yml \
-    --overrides \
-    --task_name ${task_name} \
-    --task_config ${task_config} \
-    --ckpt_setting ${ckpt_setting} \
-    --seed ${seed} \
-    --policy_name ${policy_name}
-```
-
-**Set these variables:**
-- `task_name`: Task to evaluate (e.g., `"grab_roller"`, `"handover_mic"`, etc.)
-- `task_config`: `"demo_randomized"` (Hard mode) or `"demo_clean"` (Easy mode)
-- `ckpt_setting`: Checkpoint path relative to policy directory (e.g., `"checkpoints/table8_checkpoint30"`)
-- `gpu_id`: GPU to use (e.g., `"0"`)
-
-**Note:** The path calculation code (lines 14-17) is essential - it ensures the script finds `script/eval_policy.py` regardless of where you run the script from.
-
 ### Run Evaluation
+
+The `eval.sh` script now accepts command-line arguments, so you don't need to edit the file. Simply pass the arguments when running the script:
 
 ```bash
 cd ~/RoboTwin/policy/H-RDT/inference/robotwin2_example/H-RDT
@@ -343,11 +298,35 @@ source hrdt_env/bin/activate
 export HRDT_PROJECT_ROOT="$HOME/H_RDT"
 export PYTHONPATH="${HRDT_PROJECT_ROOT}:${PYTHONPATH}"
 cd ~/RoboTwin/policy/H-RDT/inference/robotwin2_example/H-RDT
-
-bash eval.sh
 ```
 
-**Note:** Change `ckpt_setting` in `eval.sh` to evaluate different checkpoints.
+**Usage:**
+```bash
+./eval.sh <task_name> <task_config> <ckpt_setting> <gpu_id> [seed]
+
+# bash ./eval.sh handover_mic demo_randomized checkpoints/table8_handover_mic/checkpoint-10000 3
+```
+
+**Arguments:**
+- `task_name`: Task to evaluate (e.g., `handover_mic`, `grab_roller`, `stack_bowls_two`)
+- `task_config`: `demo_clean` (Easy mode) or `demo_randomized` (Hard mode)
+- `ckpt_setting`: Checkpoint path relative to policy directory (e.g., `checkpoints/table8_handover_mic/checkpoint-10000`)
+- `gpu_id`: GPU ID to use (e.g., `0`)
+- `seed`: Random seed (optional, defaults to `42`)
+
+**Examples:**
+```bash
+# Easy mode evaluation
+./eval.sh handover_mic demo_clean checkpoints/table8_handover_mic/checkpoint-10000 0
+
+# Hard mode evaluation with custom seed
+./eval.sh handover_mic demo_randomized checkpoints/table8_handover_mic/checkpoint-10000 0 123
+
+# Different task
+./eval.sh grab_roller demo_clean checkpoints/table8_grab_roller/checkpoint-10000 1
+```
+
+**Note:** If you run the script without arguments, it will display a usage message with examples.
 
 ### Finding Evaluation Results
 
@@ -495,8 +474,10 @@ tasks=(
 
 for task in "${tasks[@]}"; do
     echo "Evaluating: $task"
-    sed -i "s/task_name=\".*\"/task_name=\"$task\"/" eval.sh
-    bash eval.sh
+    # Using CLI arguments - no need to edit eval.sh
+    ./eval.sh "$task" "demo_clean" "checkpoints/table8_${task}/checkpoint-10000" 0
+    # Or for hard mode:
+    # ./eval.sh "$task" "demo_randomized" "checkpoints/table8_${task}/checkpoint-10000" 0
 done
 ```
 
@@ -545,7 +526,10 @@ Based on H-RDT paper Table 8:
 - **Solution:** Use absolute paths or ensure you're in the correct directory
 
 **Problem:** `eval.sh` changes directory incorrectly
-- **Solution:** The script uses absolute paths calculated from script location. If you see path errors, ensure `eval.sh` uses the path calculation shown in the guide (lines 14-17).
+- **Solution:** The script uses absolute paths calculated from script location. If you see path errors, ensure you're running the script from the correct directory (`~/RoboTwin/policy/H-RDT/inference/robotwin2_example/H-RDT`).
+
+**Problem:** Wrong arguments passed to `eval.sh`
+- **Solution:** Run `./eval.sh` without arguments to see the usage message with correct argument format.
 
 ### Asset Issues
 
@@ -589,8 +573,9 @@ ls -lh ~/H_RDT/checkpoints/YOUR_CHECKPOINT/pytorch_model_consolidated.bin
 ls -lh ~/RoboTwin/policy/H-RDT/checkpoints/YOUR_CHECKPOINT_NAME/pytorch_model.bin
 # Should be ~7.7GB
 
-# Check eval.sh configured
-grep "ckpt_setting=" ~/RoboTwin/policy/H-RDT/inference/robotwin2_example/H-RDT/eval.sh
+# Check eval.sh usage
+~/RoboTwin/policy/H-RDT/inference/robotwin2_example/H-RDT/eval.sh
+# (Running without arguments shows usage message)
 # Should point to your checkpoint
 ```
 

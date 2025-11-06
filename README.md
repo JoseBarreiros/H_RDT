@@ -8,6 +8,33 @@
 
 H-RDT (**H**uman to **R**obotics **D**iffusion **T**ransformer) is a novel approach that leverages **large-scale egocentric human manipulation data** to enhance robot manipulation capabilities. Our key insight is that large-scale egocentric human manipulation videos with paired 3D hand pose annotations provide rich behavioral priors that capture natural manipulation strategies and can benefit robotic policy learning.
 
+## 🏗️ Architecture Overview
+
+H-RDT is a **Diffusion Transformer (DiT)** model specifically designed for robotic manipulation. Here's how it compares to other large behavior models:
+
+### Key Architectural Features
+
+**H-RDT Architecture:**
+- **16 transformer blocks** with **2,176 hidden dimensions** (large-scale model)
+- **Separate cross-attention** for vision and language modalities
+- **Patch-based vision**: Uses 196 spatial patch tokens per image (preserves spatial information)
+- **DINO-SigLIP** vision encoder + **T5** language encoder
+- **Frozen encoders** + trainable adapter layers (efficient training)
+
+**Compared to Large Behavior Models (LBMs):**
+- **Scale**: H-RDT is larger (16 blocks, 2,176 dim) vs. LBMs (8 blocks, 768 dim)
+- **Vision Features**: H-RDT uses patch tokens (spatial) vs. LBMs' CLS token (global)
+- **Conditioning**: H-RDT uses separate cross-attention vs. LBMs' feature concatenation
+- **Training**: H-RDT freezes encoders + adapters (efficient) vs. LBMs finetune CLIP ViT (domain adaptation)
+
+**Why Patch Tokens Matter:**
+H-RDT preserves **spatial structure** (196 tokens per image) allowing the model to selectively attend to specific image regions (e.g., objects being manipulated), while CLS token approaches lose spatial detail by collapsing everything into a single global vector.
+
+**Training Efficiency:**
+H-RDT's frozen encoder strategy makes training more efficient (no encoder backprop), while LBMs finetune the vision encoder for better domain adaptation but require more compute.
+
+📖 **For detailed architecture comparison, see [ARCHITECTURE_COMPARISON.md](ARCHITECTURE_COMPARISON.md)**
+
 ## 🚀 Installation
 
 ### Quick Start (Recommended)
@@ -306,7 +333,9 @@ bash prepare_robotwin_evaluation.sh
 # 3. Run evaluation
 cd ~/RoboTwin/policy/H-RDT/inference/robotwin2_example/H-RDT
 source ~/.config/hrdt/activate.sh
-bash eval.sh
+
+# Run evaluation with CLI arguments
+./eval.sh handover_mic demo_clean checkpoints/table8_handover_mic/checkpoint-10000 0
 ```
 
 📖 **For detailed evaluation guide, see [ROBOTWIN_EVALUATION_README.md](ROBOTWIN_EVALUATION_README.md)**
