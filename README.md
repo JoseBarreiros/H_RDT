@@ -340,6 +340,26 @@ source ~/.config/hrdt/activate.sh
 
 📖 **For detailed evaluation guide, see [ROBOTWIN_EVALUATION_README.md](ROBOTWIN_EVALUATION_README.md)**
 
+### Data Scaling Plots
+
+We provide a helper script to generate scaling-law plots comparing EgoDex pretraining with robot-data baselines:
+
+```bash
+python plot_scaling.py \
+  --remove_hours_leq_one  # Optional: exclude samples with ≤1 hour from the power-law fits
+```
+
+This script takes inputs from `eval_results/scaling laws egodex - Sheet2.csv`, `eval_results/baselines.csv`, and `eval_results/robot_data_success_rate.csv`, producing plots under `plots/`:
+
+- `sr_vs_percentage.png`: Success rate vs percentage of EgoDex data
+- `sr_vs_num_videos.png`: Success rate vs number of human videos (log scale)
+- `sr_vs_hours.png`: Success rate vs hours of human video (log scale)
+- `sr_vs_hours_projection.png`: Average success-rate projection vs human hours
+- `sr_vs_operator_hours_projection.png`: Average success-rate projection vs operator hours
+- `cost_vs_target_success.png`: Total operator cost vs target success rate
+
+All plots include EgoDex averages, robot baselines, and optional projections. Use the command-line flag to control whether ≤1-hour points are excluded from the power-law fits.
+
 **Copying Checkpoints Between Instances:**
 ```bash
 # Quick copy from another instance
