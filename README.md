@@ -346,7 +346,8 @@ We provide a helper script to generate scaling-law plots comparing EgoDex pretra
 
 ```bash
 python plot_scaling.py \
-  --remove_hours_leq_one  # Optional: exclude samples with ≤1 hour from the power-law fits
+  --remove_hours_leq_one \
+  --fit_mode power  # use "linear" or "log" for alternative fits
 ```
 
 This script takes inputs from `eval_results/scaling laws egodex - Sheet2.csv`, `eval_results/baselines.csv`, and `eval_results/robot_data_success_rate.csv`, producing plots under `plots/`:
@@ -358,7 +359,7 @@ This script takes inputs from `eval_results/scaling laws egodex - Sheet2.csv`, `
 - `sr_vs_operator_hours_projection.png`: Average success-rate projection vs operator hours
 - `cost_vs_target_success.png`: Total operator cost vs target success rate
 
-All plots include EgoDex averages, robot baselines, and optional projections. Use the command-line flag to control whether ≤1-hour points are excluded from the power-law fits.
+All plots include EgoDex averages, robot baselines, and optional projections. Use the command-line flags to control whether ≤1-hour points are excluded and which fit mode (power-law, linear, or logarithmic) is used for the projections and downstream calculations.
 
 **Copying Checkpoints Between Instances:**
 ```bash

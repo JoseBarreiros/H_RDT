@@ -28,7 +28,13 @@ parser = argparse.ArgumentParser(description="Generate scaling-law plots for Ego
 parser.add_argument(
     "--remove_hours_leq_one",
     action="store_true",
-    help="Exclude samples with hours <= 1 when fitting power-law curves (EgoVideo and Robot data).",
+    help="Exclude samples with hours <= 1 when fitting projection curves.",
+)
+parser.add_argument(
+    "--fit_mode",
+    choices=["power", "linear", "log"],
+    default="power",
+    help="Type of curve fit to use for projections (options: power, linear, log).",
 )
 args = parser.parse_args()
 
@@ -43,10 +49,147 @@ SCALING_TARGET_HOURS = 1e8  # extrapolation target
 EGOVIDEO_TO_OPERATOR = 1.25  # 1 ego hour -> 1.25 operator hours
 ROBOTDATA_TO_OPERATOR = 3.0  # 1 robot-data hour -> 3 operator hours (assumption)
 OPERATOR_HOUR_COST = 20.0  # USD per operator hour
+SCALING_TARGET_OPERATOR = SCALING_TARGET_HOURS * EGOVIDEO_TO_OPERATOR
 BASELINE_STYLES = {
     "π0": {"color": "dimgray", "linestyle": "--"},
     "DP": {"color": "saddlebrown", "linestyle": ":"},
 }
+
+
+def fit_curve(x, y, mode):
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    mask = np.isfinite(x) & np.isfinite(y)
+    x = x[mask]
+    y = y[mask]
+
+    if mode == "power":
+        pos_mask = x > 0
+        x = x[pos_mask]
+        y = y[pos_mask]
+        if x.size < 2:
+            return None
+        coeffs = np.polyfit(np.log10(x), y, deg=1)
+    elif mode == "log":
+        pos_mask = x > 0
+        x = x[pos_mask]
+        y = y[pos_mask]
+        if x.size < 2:
+            return None
+        coeffs = np.polyfit(np.log(x), y, deg=1)
+    else:  # linear
+        if x.size < 2:
+            return None
+        coeffs = np.polyfit(x, y, deg=1)
+    return coeffs
+
+
+def evaluate_curve(coeffs, x, mode):
+    if coeffs is None:
+        return np.array([])
+    x = np.asarray(x, dtype=float)
+    if mode == "power":
+        return np.polyval(coeffs, np.log10(x))
+    if mode == "log":
+        return np.polyval(coeffs, np.log(x))
+    return np.polyval(coeffs, x)
+
+
+def invert_curve(coeffs, target_y, mode):
+    if coeffs is None:
+        return np.nan
+    a, b = coeffs
+    if mode == "power":
+        if abs(a) < 1e-10:
+            return np.nan
+        return 10 ** ((target_y - b) / a)
+    if mode == "log":
+        if abs(a) < 1e-10:
+            return np.nan
+        return np.exp((target_y - b) / a)
+    if abs(a) < 1e-10:
+        return np.nan
+    return (target_y - b) / a
+
+
+def prepare_curve(x_obs, y_obs, target_max, mode, remove_leq_one, min_fit_x=1.0):
+    x_obs = np.asarray(x_obs, dtype=float)
+    y_obs = np.asarray(y_obs, dtype=float)
+    mask = np.isfinite(x_obs) & np.isfinite(y_obs)
+    x_obs = x_obs[mask]
+    y_obs = y_obs[mask]
+
+    if mode == "power":
+        pos_mask = x_obs > 0
+        x_obs = x_obs[pos_mask]
+        y_obs = y_obs[pos_mask]
+    elif mode == "log":
+        pos_mask = x_obs > 0
+        x_obs = x_obs[pos_mask]
+        y_obs = y_obs[pos_mask]
+
+    scatter_x = x_obs.copy()
+    scatter_y = y_obs.copy()
+
+    if x_obs.size == 0:
+        return {
+            "scatter_x": scatter_x,
+            "scatter_y": scatter_y,
+            "fit_x": np.array([]),
+            "fit_y": np.array([]),
+            "coeffs": None,
+            "projection_x": np.array([]),
+            "projection_y": np.array([]),
+            "scatter_used_mask": np.array([], dtype=bool),
+        }
+
+    fit_mask = np.ones_like(x_obs, dtype=bool)
+    if remove_leq_one:
+        threshold = min_fit_x if mode in ("power", "log") else max(min_fit_x, 0.0)
+        fit_mask &= x_obs > threshold
+
+    if fit_mask.sum() < 2:
+        fit_mask = np.ones_like(x_obs, dtype=bool)
+
+    x_fit = x_obs[fit_mask]
+    y_fit = y_obs[fit_mask]
+
+    coeffs = fit_curve(x_fit, y_fit, mode)
+
+    if coeffs is None or target_max <= 0:
+        projection_x = np.array([])
+        projection_y = np.array([])
+    else:
+        if mode == "power":
+            min_x = max(x_fit.min(), 1e-6)
+            if target_max <= min_x:
+                projection_x = np.array([])
+            else:
+                projection_x = np.logspace(np.log10(min_x), np.log10(target_max), num=400)
+        elif mode == "log":
+            min_x = max(x_fit.min(), 1e-6)
+            if target_max <= min_x:
+                projection_x = np.array([])
+            else:
+                projection_x = np.logspace(np.log10(min_x), np.log10(target_max), num=400)
+        else:
+            min_x = x_fit.min()
+            if target_max <= min_x:
+                projection_x = np.array([])
+            else:
+                projection_x = np.linspace(min_x, target_max, num=400)
+        projection_y = np.clip(evaluate_curve(coeffs, projection_x, mode), 0.0, 1.0) if projection_x.size else np.array([])
+
+    return {
+        "scatter_x": scatter_x,
+        "scatter_y": scatter_y,
+        "fit_x": x_fit,
+        "fit_y": y_fit,
+        "coeffs": coeffs,
+        "projection_x": projection_x,
+        "projection_y": projection_y,
+        "scatter_used_mask": fit_mask.astype(bool),
+    }
 
 # Create output directory
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -67,6 +210,8 @@ robot_df = pd.read_csv(ROBOT_DATA_PATH)
 robot_df.columns = [col.strip() for col in robot_df.columns]
 robot_df = robot_df.dropna(subset=['Robot Data Hours', 'Success Rate'])
 robot_df.loc[robot_df['Robot Data Hours'] <= 0, 'Robot Data Hours'] = 1
+robot_hours_raw = robot_df['Robot Data Hours'].astype(float).to_numpy()
+robot_success_raw = robot_df['Success Rate'].astype(float).to_numpy()
 
 # Clean percentage column to numeric (0-100)
 def parse_pct(value):
@@ -106,7 +251,17 @@ melted = df_sorted.melt(
 melted['Success Rate'] = melted['Success Rate'].astype(float)
 
 # ---- Plot helpers ----------------------------------------------------------
-sns.set(style="whitegrid", font_scale=1.2)
+sns.set(style="whitegrid", font_scale=1.4)
+plt.rcParams.update(
+    {
+        "axes.titlesize": 20,
+        "axes.labelsize": 18,
+        "xtick.labelsize": 16,
+        "ytick.labelsize": 16,
+        "legend.fontsize": 15,
+        "legend.title_fontsize": 16,
+    }
+)
 
 def save_plot(fig, filename):
     path = os.path.join(OUTPUT_DIR, filename)
@@ -245,82 +400,62 @@ positive_mask = hours_avg > 0
 hours_avg_pos = hours_avg[positive_mask]
 success_avg_pos = success_avg[positive_mask]
 
-fit_mask_ego = hours_avg_pos > 1 if args.remove_hours_leq_one else np.ones_like(hours_avg_pos, dtype=bool)
-if fit_mask_ego.sum() >= 2:
-    hours_fit = hours_avg_pos[fit_mask_ego]
-    success_fit = success_avg_pos[fit_mask_ego]
-else:
-    hours_fit = hours_avg_pos
-    success_fit = success_avg_pos
+ego_hours_curve = prepare_curve(hours_avg_pos, success_avg_pos, SCALING_TARGET_HOURS, args.fit_mode, args.remove_hours_leq_one)
+robot_hours_curve = prepare_curve(robot_hours_raw, robot_success_raw, SCALING_TARGET_HOURS, args.fit_mode, args.remove_hours_leq_one)
 
-log_hours = np.log10(hours_fit)
-coeffs = np.polyfit(log_hours, success_fit, deg=1)
+if ego_hours_curve['scatter_x'].size > 0:
+    ego_scatter_x = ego_hours_curve['scatter_x']
+    ego_scatter_y = ego_hours_curve['scatter_y']
+    if (
+        args.remove_hours_leq_one
+        and ego_hours_curve.get('scatter_used_mask') is not None
+        and ego_hours_curve['scatter_used_mask'].size == ego_scatter_x.size
+    ):
+        mask = ego_hours_curve['scatter_used_mask']
+        ego_scatter_x = ego_scatter_x[mask]
+        ego_scatter_y = ego_scatter_y[mask]
+    if ego_scatter_x.size > 0:
+        ax.scatter(ego_scatter_x, ego_scatter_y, color='black', label='Egovideo pretraining average (observed)')
+if ego_hours_curve['projection_x'].size > 0:
+    fit_name = f"Egovideo pretraining {args.fit_mode} fit"
+    ax.plot(ego_hours_curve['projection_x'], ego_hours_curve['projection_y'], '-', color='tab:blue', label=fit_name)
 
-projection_hours = np.logspace(
-    np.log10(hours_fit.min()),
-    np.log10(SCALING_TARGET_HOURS),
-    num=400
-)
-projection_success = np.polyval(coeffs, np.log10(projection_hours))
-projection_success = np.clip(projection_success, 0.0, 1.0)
-
-avg_label_obs = 'Egovideo pretraining average (observed)'
-avg_label_fit = 'Egovideo pretraining power-law fit'
-robot_label_obs = 'Robot data pretraining average (observed)'
-robot_label_fit = 'Robot data pretraining power-law fit'
-
-ax.scatter(hours_avg_pos, success_avg_pos, color='black', label=avg_label_obs)
-ax.plot(projection_hours, projection_success, '-', color='tab:blue', label=avg_label_fit)
-
-robot_positive = robot_df['Robot Data Hours'] > 0
-robot_hours_all = robot_df.loc[robot_positive, 'Robot Data Hours'].values
-robot_success_all = robot_df.loc[robot_positive, 'Success Rate'].values
-fit_mask_robot = robot_hours_all > 1 if args.remove_hours_leq_one else np.ones_like(robot_hours_all, dtype=bool)
-robot_hours_fit = robot_hours_all[fit_mask_robot]
-robot_success_fit = robot_success_all[fit_mask_robot]
-
-if robot_hours_all.size > 0:
-    ax.scatter(
-        robot_hours_all,
-        robot_success_all,
-        color='tab:orange',
-        label=robot_label_obs
-    )
-
-robot_projection_hours = None
-robot_projection_success = None
-if robot_hours_fit.size >= 2:
-    robot_coeffs = np.polyfit(np.log10(robot_hours_fit), robot_success_fit, deg=1)
-    robot_projection_hours = np.logspace(
-        np.log10(robot_hours_fit.min()),
-        np.log10(SCALING_TARGET_HOURS),
-        num=400
-    )
-    robot_projection_success = np.polyval(robot_coeffs, np.log10(robot_projection_hours))
-    robot_projection_success = np.clip(robot_projection_success, 0.0, 1.0)
-    ax.plot(
-        robot_projection_hours,
-        robot_projection_success,
-        color='tab:red',
-        linestyle='--',
-        label=robot_label_fit
-    )
+if robot_hours_curve['scatter_x'].size > 0:
+    robot_scatter_x = robot_hours_curve['scatter_x']
+    robot_scatter_y = robot_hours_curve['scatter_y']
+    if (
+        args.remove_hours_leq_one
+        and robot_hours_curve.get('scatter_used_mask') is not None
+        and robot_hours_curve['scatter_used_mask'].size == robot_scatter_x.size
+    ):
+        mask_robot = robot_hours_curve['scatter_used_mask']
+        robot_scatter_x = robot_scatter_x[mask_robot]
+        robot_scatter_y = robot_scatter_y[mask_robot]
+    if robot_scatter_x.size > 0:
+        ax.scatter(robot_scatter_x, robot_scatter_y, color='tab:orange', label='Robot data pretraining average (observed)')
+if robot_hours_curve['projection_x'].size > 0:
+    fit_name_robot = f"Robot data pretraining {args.fit_mode} fit"
+    ax.plot(robot_hours_curve['projection_x'], robot_hours_curve['projection_y'], color='tab:red', linestyle='--', label=fit_name_robot)
 
 ax.set_xscale('log')
 ax.set_title('Average Success Rate Scaling Projection')
-ax.set_xlabel('Hours of Human Video (log scale)')
+ax.set_xlabel('Hours of Data (log scale)')
 ax.set_ylabel('Average Success Rate')
 ax.set_ylim(0, 1.05)
-min_power = int(np.floor(np.log10(hours_fit.min())))
+positive_hours = ego_hours_curve['scatter_x'][ego_hours_curve['scatter_x'] > 0]
+if positive_hours.size > 0:
+    min_power = int(np.floor(np.log10(positive_hours.min())))
+else:
+    min_power = 0
 max_power = int(np.ceil(np.log10(SCALING_TARGET_HOURS)))
 xticks = [10 ** p for p in range(min_power, max_power + 1)]
 ax.set_xticks(xticks)
 ax.set_xticklabels([f"$10^{p}$" for p in range(min_power, max_power + 1)])
 ax.legend(loc='lower right')
 
-predicted = np.polyval(coeffs, np.log10(SCALING_TARGET_HOURS))
-predicted = max(0.0, min(1.0, predicted))
-print(f"Projected average success rate at {SCALING_TARGET_HOURS:.0e} hours: {predicted*100:.2f}%")
+if ego_hours_curve['coeffs'] is not None:
+    predicted = np.clip(evaluate_curve(ego_hours_curve['coeffs'], [SCALING_TARGET_HOURS], args.fit_mode)[0], 0.0, 1.0)
+    print(f"Projected average success rate at {SCALING_TARGET_HOURS:.0e} hours: {predicted*100:.2f}%")
 
 save_plot(fig, "sr_vs_hours_projection.png")
 
@@ -328,50 +463,86 @@ save_plot(fig, "sr_vs_hours_projection.png")
 fig, ax = plt.subplots(figsize=(8, 6))
 
 operator_hours_all = hours_avg_pos * EGOVIDEO_TO_OPERATOR
-if fit_mask_ego.sum() >= 2:
-    operator_hours_fit = operator_hours_all[fit_mask_ego]
-    success_fit_op = success_fit
-else:
-    operator_hours_fit = operator_hours_all
-    success_fit_op = success_avg_pos
+robot_operator_hours_all = robot_hours_raw * ROBOTDATA_TO_OPERATOR
 
-log_operator = np.log10(operator_hours_fit)
-coeffs_operator = np.polyfit(log_operator, success_fit_op, deg=1)
-
-SCALING_TARGET_OPERATOR = SCALING_TARGET_HOURS * EGOVIDEO_TO_OPERATOR
-projection_operator_hours = np.logspace(
-    np.log10(operator_hours_fit.min()),
-    np.log10(SCALING_TARGET_OPERATOR),
-    num=400
+ego_operator_curve = prepare_curve(
+    operator_hours_all,
+    success_avg_pos,
+    SCALING_TARGET_OPERATOR,
+    args.fit_mode,
+    args.remove_hours_leq_one,
+    min_fit_x=EGOVIDEO_TO_OPERATOR,
 )
-projection_operator_success = np.polyval(coeffs_operator, np.log10(projection_operator_hours))
-projection_operator_success = np.clip(projection_operator_success, 0.0, 1.0)
-
-ax.plot(
-    projection_operator_hours,
-    projection_operator_success,
-    color='tab:blue',
-    label='Egovideo pretraining power-law fit'
+robot_operator_curve = prepare_curve(
+    robot_operator_hours_all,
+    robot_success_raw,
+    SCALING_TARGET_OPERATOR,
+    args.fit_mode,
+    args.remove_hours_leq_one,
+    min_fit_x=ROBOTDATA_TO_OPERATOR,
 )
 
-robot_operator_hours = robot_hours_fit * ROBOTDATA_TO_OPERATOR
-
-robot_success_op = robot_success_fit
-if robot_operator_hours.size >= 2:
-    robot_coeffs_op = np.polyfit(np.log10(robot_operator_hours), robot_success_op, deg=1)
-    robot_projection_operator_hours = np.logspace(
-        np.log10(robot_operator_hours.min()),
-        np.log10(SCALING_TARGET_OPERATOR),
-        num=400
+if ego_operator_curve['projection_x'].size > 0:
+    if ego_operator_curve['scatter_x'].size > 0:
+        ego_op_scatter_x = ego_operator_curve['scatter_x']
+        ego_op_scatter_y = ego_operator_curve['scatter_y']
+        if (
+            args.remove_hours_leq_one
+            and ego_operator_curve.get('scatter_used_mask') is not None
+            and ego_operator_curve['scatter_used_mask'].size == ego_op_scatter_x.size
+        ):
+            mask = ego_operator_curve['scatter_used_mask']
+            ego_op_scatter_x = ego_op_scatter_x[mask]
+            ego_op_scatter_y = ego_op_scatter_y[mask]
+        if ego_op_scatter_x.size > 0:
+            ax.scatter(
+                ego_op_scatter_x,
+                ego_op_scatter_y,
+                color='tab:blue',
+                alpha=0.8,
+                label='_nolegend_',
+            )
+    ego_label = (
+        f"Egovideo pretraining {args.fit_mode} fit\n"
+        f"(1 hr -> {EGOVIDEO_TO_OPERATOR:.2f} operator hr)"
     )
-    robot_projection_operator_success = np.polyval(robot_coeffs_op, np.log10(robot_projection_operator_hours))
-    robot_projection_operator_success = np.clip(robot_projection_operator_success, 0.0, 1.0)
     ax.plot(
-        robot_projection_operator_hours,
-        robot_projection_operator_success,
+        ego_operator_curve['projection_x'],
+        ego_operator_curve['projection_y'],
+        color='tab:blue',
+        label=ego_label,
+    )
+if robot_operator_curve['projection_x'].size > 0:
+    if robot_operator_curve['scatter_x'].size > 0:
+        robot_op_scatter_x = robot_operator_curve['scatter_x']
+        robot_op_scatter_y = robot_operator_curve['scatter_y']
+        if (
+            args.remove_hours_leq_one
+            and robot_operator_curve.get('scatter_used_mask') is not None
+            and robot_operator_curve['scatter_used_mask'].size == robot_op_scatter_x.size
+        ):
+            mask = robot_operator_curve['scatter_used_mask']
+            robot_op_scatter_x = robot_op_scatter_x[mask]
+            robot_op_scatter_y = robot_op_scatter_y[mask]
+        if robot_op_scatter_x.size > 0:
+            ax.scatter(
+                robot_op_scatter_x,
+                robot_op_scatter_y,
+                color='tab:red',
+                alpha=0.8,
+                marker='s',
+                label='_nolegend_',
+            )
+    robot_label = (
+        f"Robot data pretraining {args.fit_mode} fit\n"
+        f"(1 hr -> {ROBOTDATA_TO_OPERATOR:.2f} operator hr)"
+    )
+    ax.plot(
+        robot_operator_curve['projection_x'],
+        robot_operator_curve['projection_y'],
         color='tab:red',
         linestyle='--',
-        label='Robot data pretraining power-law fit'
+        label=robot_label,
     )
 
 ax.set_xscale('log')
@@ -379,102 +550,145 @@ ax.set_title('Success Rate vs. Operator Hours (Projection)')
 ax.set_xlabel('Operator Hours (log scale)')
 ax.set_ylabel('Average Success Rate')
 ax.set_ylim(0, 1.05)
-
-min_power_op = int(np.floor(np.log10(operator_hours_fit.min())))
+if ego_operator_curve['projection_x'].size > 0:
+    min_power_op = int(np.floor(np.log10(max(ego_operator_curve['projection_x'][0], 1e-12))))
+else:
+    min_power_op = int(np.floor(np.log10(max(operator_hours_all.min(), 1e-12))))
+min_power_op = max(min_power_op, 0)
 max_power_op = int(np.ceil(np.log10(SCALING_TARGET_OPERATOR)))
 xticks_op = [10 ** p for p in range(min_power_op, max_power_op + 1)]
 ax.set_xticks(xticks_op)
 ax.set_xticklabels([f"$10^{p}$" for p in range(min_power_op, max_power_op + 1)])
+# Ensure x-axis starts at 10^0 (1 operator hour)
+x_axis_min = 10 ** min_power_op
+curve_max_values = []
+if ego_operator_curve['projection_x'].size > 0:
+    curve_max_values.append(ego_operator_curve['projection_x'].max())
+if robot_operator_curve['projection_x'].size > 0:
+    curve_max_values.append(robot_operator_curve['projection_x'].max())
+if not curve_max_values:
+    curve_max_values.append(SCALING_TARGET_OPERATOR)
+x_axis_max = max(curve_max_values)
+ax.set_xlim(x_axis_min, x_axis_max)
 ax.legend(loc='lower right')
 
-predicted_operator = np.polyval(coeffs_operator, np.log10(SCALING_TARGET_OPERATOR))
-predicted_operator = max(0.0, min(1.0, predicted_operator))
-print(f"Projected average success rate at {SCALING_TARGET_OPERATOR:.0e} operator hours: {predicted_operator*100:.2f}%")
+if ego_operator_curve['coeffs'] is not None:
+    predicted_operator = np.clip(evaluate_curve(ego_operator_curve['coeffs'], [SCALING_TARGET_OPERATOR], args.fit_mode)[0], 0.0, 1.0)
+    print(f"Projected average success rate at {SCALING_TARGET_OPERATOR:.0e} operator hours: {predicted_operator*100:.2f}%")
 
-for target_sr in [0.4, 0.5, 0.6, 0.7, 0.8]:
-    if target_sr <= 0 or target_sr >= 1:
-        continue
-    hours_needed = 10 ** np.interp(
-        target_sr,
-        np.log10(projection_operator_success[::-1]),
-        np.log10(projection_operator_hours[::-1])
-    )
-    hours_needed = max(hours_needed, operator_hours_fit.min())
-    ax.scatter(target_sr, hours_needed, color='tab:blue')
-    ax.text(target_sr, hours_needed, f"{hours_needed:.1e}", fontsize=10, ha='left', va='bottom', color='tab:blue')
-    if robot_operator_hours.size >= 2:
-        robot_hours_needed = 10 ** np.interp(
-            target_sr,
-            np.log10(robot_projection_operator_success[::-1]),
-            np.log10(robot_projection_operator_hours[::-1])
-        )
-        robot_hours_needed = max(robot_hours_needed, robot_operator_hours.min())
-        ax.scatter(target_sr, robot_hours_needed, color='tab:red')
-        ax.text(target_sr, robot_hours_needed, f"{robot_hours_needed:.1e}", fontsize=10, ha='left', va='top', color='tab:red')
+if ego_operator_curve['coeffs'] is not None and ego_operator_curve['projection_x'].size > 0:
+    ego_min_fit = ego_operator_curve['fit_x'].min() if ego_operator_curve['fit_x'].size > 0 else ego_operator_curve['projection_x'][0]
+    for target_sr in [0.4, 0.5, 0.6, 0.7, 0.8]:
+        if not (0 < target_sr < 1):
+            continue
+        hours_needed = invert_curve(ego_operator_curve['coeffs'], target_sr, args.fit_mode)
+        if not np.isfinite(hours_needed):
+            continue
+        hours_needed = max(hours_needed, ego_min_fit)
+        ax.scatter(target_sr, hours_needed, color='tab:blue')
+        ax.text(target_sr, hours_needed, f"{hours_needed:.1e}", fontsize=10, ha='left', va='bottom', color='tab:blue')
+        if robot_operator_curve['coeffs'] is not None and robot_operator_curve['projection_x'].size > 0:
+            robot_min_fit = robot_operator_curve['fit_x'].min() if robot_operator_curve['fit_x'].size > 0 else robot_operator_curve['projection_x'][0]
+            robot_hours_needed = invert_curve(robot_operator_curve['coeffs'], target_sr, args.fit_mode)
+            if np.isfinite(robot_hours_needed):
+                robot_hours_needed = max(robot_hours_needed, robot_min_fit)
+                ax.scatter(target_sr, robot_hours_needed, color='tab:red')
+                ax.text(target_sr, robot_hours_needed, f"{robot_hours_needed:.1e}", fontsize=10, ha='left', va='top', color='tab:red')
 
 save_plot(fig, "sr_vs_operator_hours_projection.png")
 
 # ---- Plot 6: Total cost vs target success rate ------------------------------
 fig, ax = plt.subplots(figsize=(8, 6))
 
-target_hours = projection_operator_hours
-if 'robot_projection_operator_hours' in locals():
-    target_hours = np.union1d(target_hours, robot_projection_operator_hours)
+if ego_operator_curve['projection_x'].size > 0:
+    target_hours = ego_operator_curve['projection_x']
+    if robot_operator_curve['projection_x'].size > 0:
+        target_hours = np.union1d(target_hours, robot_operator_curve['projection_x'])
+    target_hours = np.union1d(target_hours, [SCALING_TARGET_OPERATOR])
 
-ego_cost = target_hours * OPERATOR_HOUR_COST
-ego_success_curve = np.polyval(coeffs_operator, np.log10(target_hours))
-ego_success_curve = np.clip(ego_success_curve, 0.0, 1.0)
+    ego_hours_for_one = invert_curve(ego_operator_curve['coeffs'], 1.0, args.fit_mode)
+    if np.isfinite(ego_hours_for_one) and ego_hours_for_one > 0:
+        target_hours = np.union1d(target_hours, [ego_hours_for_one])
 
-ax.plot(
-    ego_success_curve,
-    ego_cost,
-    color='tab:blue',
-    label='Egovideo pretraining cost curve'
-)
-if 'robot_projection_operator_hours' in locals():
-    robot_cost = target_hours * OPERATOR_HOUR_COST
-    robot_success_curve = np.polyval(robot_coeffs_op, np.log10(target_hours))
-    robot_success_curve = np.clip(robot_success_curve, 0.0, 1.0)
-    ax.plot(
-        robot_success_curve,
-        robot_cost,
-        color='tab:red',
-        linestyle='--',
-        label='Robot data pretraining cost curve'
-    )
+    if robot_operator_curve['coeffs'] is not None:
+        robot_hours_for_one = invert_curve(robot_operator_curve['coeffs'], 1.0, args.fit_mode)
+        if np.isfinite(robot_hours_for_one) and robot_hours_for_one > 0:
+            target_hours = np.union1d(target_hours, [robot_hours_for_one])
+
+    ego_cost = target_hours * OPERATOR_HOUR_COST
+    ego_success_curve = np.clip(evaluate_curve(ego_operator_curve['coeffs'], target_hours, args.fit_mode), 0.0, 1.0)
+    ax.plot(ego_success_curve, ego_cost, color='tab:blue', label='Egovideo pretraining cost curve')
+
+    if robot_operator_curve['projection_x'].size > 0 and robot_operator_curve['coeffs'] is not None:
+        robot_cost = target_hours * OPERATOR_HOUR_COST
+        robot_success_curve = np.clip(evaluate_curve(robot_operator_curve['coeffs'], target_hours, args.fit_mode), 0.0, 1.0)
+        ax.plot(robot_success_curve, robot_cost, color='tab:red', linestyle='--', label='Robot data pretraining cost curve')
+
+    for target_sr in [0.4, 0.5, 0.6, 0.7, 0.8]:
+        if not (0 < target_sr < 1):
+            continue
+        ego_hours_needed = invert_curve(ego_operator_curve['coeffs'], target_sr, args.fit_mode)
+        if not np.isfinite(ego_hours_needed):
+            continue
+        ego_hours_needed = max(ego_hours_needed, ego_operator_curve['fit_x'].min()) if ego_operator_curve['fit_x'].size > 0 else ego_hours_needed
+        ego_cost_needed = ego_hours_needed * OPERATOR_HOUR_COST
+        ego_success_actual = np.clip(
+            evaluate_curve(ego_operator_curve['coeffs'], [ego_hours_needed], args.fit_mode)[0],
+            0.0,
+            1.0,
+        )
+        ax.scatter(ego_success_actual, ego_cost_needed, color='tab:blue')
+        if ego_cost_needed < 1e3:
+            label = f"${ego_cost_needed:.0f}"
+        elif ego_cost_needed < 9e4:
+            label = f"${ego_cost_needed/1e3:.0f} k"
+        else:
+            label = f"${ego_cost_needed/1e6:.1f} M"
+        ax.text(
+            ego_success_actual,
+            ego_cost_needed,
+            label,
+            fontsize=10,
+            ha='left',
+            va='bottom',
+            color='tab:blue',
+        )
+
+        if robot_operator_curve['coeffs'] is not None and robot_operator_curve['projection_x'].size > 0:
+            robot_hours_needed = invert_curve(robot_operator_curve['coeffs'], target_sr, args.fit_mode)
+            if np.isfinite(robot_hours_needed):
+                robot_hours_needed = max(robot_hours_needed, robot_operator_curve['fit_x'].min()) if robot_operator_curve['fit_x'].size > 0 else robot_hours_needed
+                robot_cost_needed = robot_hours_needed * OPERATOR_HOUR_COST
+                robot_success_actual = np.clip(
+                    evaluate_curve(robot_operator_curve['coeffs'], [robot_hours_needed], args.fit_mode)[0],
+                    0.0,
+                    1.0,
+                )
+                ax.scatter(robot_success_actual, robot_cost_needed, color='tab:red')
+                if robot_cost_needed < 1e3:
+                    label_robot = f"${robot_cost_needed:.0f}"
+                elif robot_cost_needed < 9e4:
+                    label_robot = f"${robot_cost_needed/1e3:.0f} k"
+                else:
+                    label_robot = f"${robot_cost_needed/1e6:.1f} M"
+                ax.text(
+                    robot_success_actual,
+                    robot_cost_needed,
+                    label_robot,
+                    fontsize=10,
+                    ha='left',
+                    va='top',
+                    color='tab:red',
+                )
+else:
+    ax.text(0.5, 0.5, "Insufficient data for cost projection", transform=ax.transAxes, ha='center', va='center')
 
 ax.set_title('Total Operator Cost vs. Target Success Rate')
 ax.set_xlabel('Success Rate')
-ax.set_ylabel('Total Operator Cost (USD)')
+ax.set_ylabel('Total Operator Cost (USD) - log scale')
 ax.set_xlim(0, 1.0)
 ax.set_yscale('log')
 ax.legend(loc='upper left')
-
-for target_sr in [0.4, 0.5, 0.6, 0.7, 0.8]:
-    if target_sr <= 0 or target_sr >= 1:
-        continue
-    idx = np.argmin(np.abs(ego_success_curve - target_sr))
-    cost_needed = ego_cost[idx]
-    ax.scatter(ego_success_curve[idx], cost_needed, color='tab:blue')
-    if cost_needed < 1e3:
-        label = f"${cost_needed:.0f}"
-    elif cost_needed < 9e4:
-        label = f"${cost_needed/1e3:.0f} k"
-    else:
-        label = f"${cost_needed/1e6:.1f} M"
-    ax.text(ego_success_curve[idx], cost_needed, label, fontsize=10, ha='left', va='bottom', color='tab:blue')
-    if 'robot_projection_operator_hours' in locals():
-        idx_robot = np.argmin(np.abs(robot_success_curve - target_sr))
-        robot_cost_needed = robot_cost[idx_robot]
-        ax.scatter(robot_success_curve[idx_robot], robot_cost_needed, color='tab:red')
-        if robot_cost_needed < 1e3:
-            label_robot = f"${robot_cost_needed:.0f}"
-        elif robot_cost_needed < 9e4:
-            label_robot = f"${robot_cost_needed/1e3:.0f} k"
-        else:
-            label_robot = f"${robot_cost_needed/1e6:.1f} M"
-        ax.text(robot_success_curve[idx_robot], robot_cost_needed, label_robot, fontsize=10, ha='left', va='top', color='tab:red')
-
 ax.axvline(0.6, color='gray', linestyle=':', linewidth=1.2)
 ax.text(0.6, ax.get_ylim()[0], "Common pretraining target", rotation=90, va='bottom', ha='right', color='gray')
 
